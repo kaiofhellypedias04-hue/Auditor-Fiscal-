@@ -1,0 +1,21 @@
+# Segredos
+.env
+certs.json
+credentials.json
+certs/
+
+# Arquivos gerados
+saida/
+*.log
+__pycache__/
+*.pyc
+*.pyo
+node_modules/
+*.pfx
+
+# Python
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
