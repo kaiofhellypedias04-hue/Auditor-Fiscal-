@@ -93,7 +93,7 @@ function queuePriorityFromRow(row) {
   if (manual) return manual;
   const status = normalizeQueueStatus(row.status_fila || row.status_fila_manual || row.status);
   const hasMissing = !!String(row.campos_ausentes_xml || '').trim();
-  const hasAlerts = !!String(row.alertas_fiscais || '').trim();
+  const hasAlerts = hasQueueAlert(row);
   if (status === 'divergente' && hasMissing) return 'alta';
   if (status === 'divergente' || hasAlerts) return 'média';
   return 'baixa';
@@ -122,10 +122,20 @@ function queueSlaFromDate(dateValue, prioridade) {
 
 function queueDivergenciaLabel(row) {
   const missing = String(row.campos_ausentes_xml || '').trim();
-  const alerts = String(row.alertas_fiscais || '').trim();
+  const alerts = hasQueueAlert(row);
   if (missing) return 'Campos ausentes';
   if (alerts) return 'Alerta fiscal';
   return 'Sem divergência';
+}
+
+function hasQueueAlert(row) {
+  const raw = String(row.alertas_fiscais || '').trim();
+  if (!raw) return false;
+  const txt = raw.toLowerCase();
+  if (txt.includes('correto') && !txt.includes('diverg') && !txt.includes('nao deve') && !txt.includes('deveria')) {
+    return false;
+  }
+  return true;
 }
 
 function mapQueueItem(row) {
@@ -1990,7 +2000,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
 
             <div className="queue-detail-grid">
               <div className="queue-detail-block">
-                <div className="card-title" style={{ marginBottom: 12 }}>AnÃ¡lise interna</div>
+                <div className="card-title" style={{ marginBottom: 12 }}>Analise interna</div>
                 <div className="field">
                   <label className="label">Status da fila</label>
                   <select className="select" value={statusFila} onChange={e => setStatusFila(e.target.value)}>
@@ -2003,30 +2013,30 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                   <label className="label">Prioridade</label>
                   <select className="select" value={prioridadeFila} onChange={e => setPrioridadeFila(e.target.value)}>
                     <option value="alta">Alta</option>
-                    <option value="mÃ©dia">MÃ©dia</option>
+                    <option value="mÃ©dia">Media</option>
                     <option value="baixa">Baixa</option>
                   </select>
                 </div>
                 <div className="field" style={{ marginTop: 12 }}>
-                  <label className="label">ResponsÃ¡vel</label>
+                  <label className="label">Responsavel</label>
                   <input
                     className="input"
                     value={responsavelFila}
                     onChange={e => setResponsavelFila(e.target.value)}
-                    placeholder="Nome do responsÃ¡vel"
+                    placeholder="Nome do responsavel"
                   />
                 </div>
               </div>
 
               <div className="queue-detail-block">
-                <div className="card-title" style={{ marginBottom: 12 }}>ObservaÃ§Ã£o interna</div>
+                <div className="card-title" style={{ marginBottom: 12 }}>Observacao interna</div>
                 <div className="field">
-                  <label className="label">AnotaÃ§Ãµes do auditor</label>
+                  <label className="label">Anotacoes do auditor</label>
                   <textarea
                     className="textarea"
                     value={obsInterna}
                     onChange={e => setObsInterna(e.target.value)}
-                    placeholder="Registre contexto, decisÃ£o tomada ou encaminhamento interno."
+                    placeholder="Registre contexto, decisao tomada ou encaminhamento interno."
                   />
                   <div className="queue-detail-actions">
                     <button
@@ -2034,7 +2044,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                       disabled={savingObs}
                       onClick={salvarObservacao}
                     >
-                      {savingObs ? <Spinner size={13} /> : 'Salvar anÃ¡lise'}
+                      {savingObs ? <Spinner size={13} /> : 'Salvar analise'}
                     </button>
                   </div>
                 </div>
@@ -2971,3 +2981,4 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
