@@ -202,6 +202,51 @@ function buildQueueTributosComparativo(row) {
   ];
 }
 
+function matchQueueSmartSearch(item, query) {
+  const raw = String(query || '').trim();
+  if (!raw) return true;
+
+  const fields = {
+    nota: normFilterValue(item.queue_numero_nota),
+    empresa: normFilterValue(item.queue_empresa),
+    prestador: normFilterValue(item.queue_prestador),
+    valor: normFilterValue(fmtMoney(item.valor_total)),
+    status: normFilterValue(item.queue_status),
+    divergencia: normFilterValue(item.queue_divergencia),
+    prioridade: normFilterValue(item.queue_prioridade),
+    responsavel: normFilterValue(item.queue_responsavel),
+    entrada: normFilterValue(fmtDate(item.queue_entrada)),
+    sla: normFilterValue(item.queue_sla?.label),
+  };
+
+  const aliases = {
+    n: 'nota',
+    numero: 'nota',
+    empresa: 'empresa',
+    prestador: 'prestador',
+    valor: 'valor',
+    status: 'status',
+    divergencia: 'divergencia',
+    prioridade: 'prioridade',
+    responsavel: 'responsavel',
+    entrada: 'entrada',
+    sla: 'sla',
+  };
+
+  const haystack = Object.values(fields).join(' ');
+  const tokens = raw.split(/\s+/).map(normFilterValue).filter(Boolean);
+
+  return tokens.every(token => {
+    const idx = token.indexOf(':');
+    if (idx > 0) {
+      const key = aliases[token.slice(0, idx)];
+      const value = token.slice(idx + 1);
+      if (key && value) return fields[key].includes(value);
+    }
+    return haystack.includes(token);
+  });
+}
+
 async function api(baseUrl, path, opts = {}) {
   const method = opts.method || 'GET';
   const headers = new Headers(opts.headers || {});
@@ -1695,6 +1740,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
   const [prioridadeFila, setPrioridadeFila] = useState('baixa');
   const [responsavelFila, setResponsavelFila] = useState('');
   const [savingObs, setSavingObs] = useState(false);
+  const [smartSearch, setSmartSearch] = useState('');
   const [filters, setFilters] = useState({
     status: '',
     empresa: '',
@@ -1724,6 +1770,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
   const filteredItems = queueItems.filter(item => {
     if (filters.prioridade && normFilterValue(item.queue_prioridade) !== normFilterValue(filters.prioridade)) return false;
     if (filters.responsavel && normFilterValue(item.queue_responsavel) !== normFilterValue(filters.responsavel)) return false;
+    if (!matchQueueSmartSearch(item, smartSearch)) return false;
     return true;
   });
 
@@ -1863,6 +1910,15 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                   <option key={name} value={name}>{name}</option>
                 ))}
               </select>
+            </div>
+            <div className="field queue-search-field">
+              <label className="label">Busca inteligente</label>
+              <input
+                className="input"
+                value={smartSearch}
+                onChange={e => { setPage(1); setSmartSearch(e.target.value); }}
+                placeholder="Busque em todas as colunas ou use empresa:, status:, prioridade:, responsavel:, nota:, prestador:, valor:, entrada:, sla:"
+              />
             </div>
           </div>
         </FilterBar>
