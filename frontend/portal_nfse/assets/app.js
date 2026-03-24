@@ -147,7 +147,7 @@ function queueDivergenciaLabel(row) {
 function hasQueueAlert(row) {
   const raw = String(row.alertas_fiscais || '').trim();
   if (!raw) return false;
-  const txt = raw.toLowerCase();
+  const txt = normFilterValue(raw);
   if (txt.includes('correto') && !txt.includes('diverg') && !txt.includes('nao deve') && !txt.includes('deveria')) {
     return false;
   }
@@ -2068,7 +2068,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                     className="textarea"
                     value={obsInterna}
                     onChange={e => setObsInterna(e.target.value)}
-                    placeholder="Registre contexto, decisao tomada ou encaminhamento interno."
+                    placeholder="Registre contexto, decisão tomada ou encaminhamento interno."
                   />
                   <div className="queue-detail-actions">
                     <button
