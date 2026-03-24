@@ -72,6 +72,13 @@ function fmtDateShort(v) {
   return d.toLocaleDateString('pt-BR');
 }
 
+function fmtCompetenciaFromDate(v) {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (isNaN(d)) return '—';
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
 function today() { return new Date().toISOString().slice(0, 10); }
 
 function clientName(alias) {
@@ -168,6 +175,7 @@ function mapQueueItem(row) {
   const prioridade = queuePriorityFromRow(row);
   const responsavel = queueResponsavelFromRow(row);
   const entrada = row.updated_at || row.created_at || null;
+  const competencia = row.competencia || fmtCompetenciaFromDate(row.data_emissao);
 
   return {
     ...row,
@@ -181,6 +189,7 @@ function mapQueueItem(row) {
     queue_divergencia: queueDivergenciaLabel(row),
     queue_entrada: entrada,
     queue_sla: queueSlaFromDate(entrada, prioridade),
+    queue_competencia: competencia,
   };
 }
 
@@ -208,6 +217,7 @@ function matchQueueSmartSearch(item, query) {
 
   const fields = {
     nota: normFilterValue(item.queue_numero_nota),
+    competencia: normFilterValue(item.queue_competencia),
     empresa: normFilterValue(item.queue_empresa),
     prestador: normFilterValue(item.queue_prestador),
     valor: normFilterValue(fmtMoney(item.valor_total)),
@@ -222,6 +232,7 @@ function matchQueueSmartSearch(item, query) {
   const aliases = {
     n: 'nota',
     numero: 'nota',
+    competencia: 'competencia',
     empresa: 'empresa',
     prestador: 'prestador',
     valor: 'valor',
@@ -1746,14 +1757,20 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
     empresa: '',
     prioridade: '',
     responsavel: '',
+    data_tipo: 'entrada',
+    data_inicio: '',
+    data_fim: '',
   });
 
   const filaData = useAsync(() => {
     const q = new URLSearchParams({ page: '1', page_size: '500' });
     if (filters.status) q.set('status', filters.status);
     if (filters.empresa) q.set('cert_alias', filters.empresa);
+    if (filters.data_tipo) q.set('data_tipo', filters.data_tipo);
+    if (filters.data_inicio) q.set('data_inicio', filters.data_inicio);
+    if (filters.data_fim) q.set('data_fim', filters.data_fim);
     return api(baseUrl, `/nfse?${q.toString()}`);
-  }, [baseUrl, filters.status, filters.empresa]);
+  }, [baseUrl, filters.status, filters.empresa, filters.data_tipo, filters.data_inicio, filters.data_fim]);
 
   const queueItems = useMemo(() => {
     return (filaData.data?.items || []).map(mapQueueItem);
@@ -1804,6 +1821,29 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
     return selected ? getQueueAlertMeta(selected) : null;
   }, [selected]);
 
+  const exportQueueRows = useMemo(() => {
+    return filteredItems.map(item => ({
+      'N° da nota': item.queue_numero_nota,
+      'Competência': item.queue_competencia,
+      'Empresa': item.queue_empresa,
+      'Prestador': item.queue_prestador,
+      'Valor': fmtMoney(item.valor_total),
+      'Status': item.queue_status,
+      'Divergência': item.queue_divergencia,
+      'Prioridade': normalizeQueuePriority(item.queue_prioridade) === 'alta' ? 'Alta' : normalizeQueuePriority(item.queue_prioridade) === 'media' ? 'Média' : 'Baixa',
+      'Responsável': item.queue_responsavel,
+      'Entrada': fmtDate(item.queue_entrada),
+      'SLA': item.queue_sla?.label || '—',
+    }));
+  }, [filteredItems]);
+
+  const exportQueueDetailedRows = useMemo(() => {
+    return filteredItems.map(item => ({
+      ...item,
+      competencia: item.queue_competencia === '—' ? (item.competencia || '') : item.queue_competencia,
+    }));
+  }, [filteredItems]);
+
   const salvarObservacao = async () => {
     if (!selected) return;
     setSavingObs(true);
@@ -1845,9 +1885,25 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
         title="Fila de Trabalho"
         sub="Visão operacional das notas em análise no portal"
         actions={
-          <button className="btn btn-ghost btn-sm" onClick={filaData.reload}>
-            <IconRefresh /> Atualizar
-          </button>
+          <>
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={!filteredItems.length}
+              onClick={() => dlCSV(exportQueueRows, `fila_trabalho_${today()}.csv`)}
+            >
+              <IconDown /> Exportar fila
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={!filteredItems.length}
+              onClick={() => exportRelatorioCSV(exportQueueDetailedRows, `fila_trabalho_detalhado_${today()}.csv`)}
+            >
+              <IconDown /> Exportar detalhado
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={filaData.reload}>
+              <IconRefresh /> Atualizar
+            </button>
+          </>
         }
       />
 
@@ -1911,13 +1967,28 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                 ))}
               </select>
             </div>
+            <div className="field">
+              <label className="label">Filtrar por</label>
+              <select className="select" value={filters.data_tipo} onChange={e => setFilter('data_tipo', e.target.value)}>
+                <option value="entrada">Entrada</option>
+                <option value="emissao">Emissão</option>
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Data inicial</label>
+              <input className="input" type="date" value={filters.data_inicio} onChange={e => setFilter('data_inicio', e.target.value)} />
+            </div>
+            <div className="field">
+              <label className="label">Data final</label>
+              <input className="input" type="date" value={filters.data_fim} onChange={e => setFilter('data_fim', e.target.value)} />
+            </div>
             <div className="field queue-search-field">
               <label className="label">Busca inteligente</label>
               <input
                 className="input"
                 value={smartSearch}
                 onChange={e => { setPage(1); setSmartSearch(e.target.value); }}
-                placeholder="Busque em todas as colunas ou use empresa:, status:, prioridade:, responsavel:, nota:, prestador:, valor:, entrada:, sla:"
+                placeholder="Busque em todas as colunas ou use competencia:, empresa:, status:, prioridade:, responsavel:, nota:, prestador:, valor:, entrada:, sla:"
               />
             </div>
           </div>
@@ -1938,6 +2009,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                   <thead>
                     <tr>
                       <th>N° da nota</th>
+                      <th>Competência</th>
                       <th>Empresa</th>
                       <th>Prestador</th>
                       <th>Valor</th>
@@ -1960,6 +2032,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                         onClick={() => setSelected(item)}
                       >
                         <td className="primary mono">{item.queue_numero_nota}</td>
+                        <td className="mono">{item.queue_competencia}</td>
                         <td>{item.queue_empresa}</td>
                         <td style={{ maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.queue_prestador}>
                           {item.queue_prestador}

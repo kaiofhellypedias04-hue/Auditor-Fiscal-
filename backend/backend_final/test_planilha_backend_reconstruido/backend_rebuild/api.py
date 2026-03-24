@@ -673,6 +673,9 @@ def get_nfse(
     cnpj_cpf: Optional[str] = Query(None),
     competencia: Optional[str] = Query(None),
     codigo_servico: Optional[str] = Query(None),
+    data_tipo: Optional[str] = Query(None),
+    data_inicio: Optional[str] = Query(None),
+    data_fim: Optional[str] = Query(None),
     somente_divergentes: bool = Query(False),
     page: int = Query(1, ge=1),
     page_size: int = Query(200, ge=1, le=500),
@@ -681,6 +684,7 @@ def get_nfse(
         "cert_alias": cert_alias, "status": status, "municipio": municipio,
         "cnpj_cpf": cnpj_cpf, "competencia": competencia,
         "codigo_servico": codigo_servico, "somente_divergentes": somente_divergentes,
+        "data_tipo": data_tipo, "data_inicio": data_inicio, "data_fim": data_fim,
     }
     items, total = listar_notas_agrupadas(filters, page=page, page_size=page_size)
     return {"items": items, "total": total, "page": page, "page_size": page_size}

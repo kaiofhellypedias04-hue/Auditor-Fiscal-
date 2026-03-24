@@ -82,6 +82,9 @@ class NotaReportFilters(BaseModel):
     cnpj_cpf: Optional[str] = None
     competencia: Optional[str] = None
     codigo_servico: Optional[str] = None
+    data_tipo: Optional[str] = None
+    data_inicio: Optional[str] = None
+    data_fim: Optional[str] = None
     somente_divergentes: bool = False
 
 

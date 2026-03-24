@@ -523,6 +523,22 @@ def _build_where(filters: Optional[dict], processo_id: Optional[str] = None) -> 
             where_clauses.append("n.codigo_servico = %s")
             params.append(codigo_servico)
 
+        data_tipo = filters.get("data_tipo") or "entrada"
+        data_inicio = filters.get("data_inicio")
+        data_fim = filters.get("data_fim")
+        if data_inicio:
+            if data_tipo == "emissao":
+                where_clauses.append("n.data_emissao >= %s")
+            else:
+                where_clauses.append("DATE(n.created_at) >= %s")
+            params.append(data_inicio)
+        if data_fim:
+            if data_tipo == "emissao":
+                where_clauses.append("n.data_emissao <= %s")
+            else:
+                where_clauses.append("DATE(n.created_at) <= %s")
+            params.append(data_fim)
+
         cert_alias = filters.get("cert_alias")
         if cert_alias:
             where_clauses.append("n.cert_alias = %s")
