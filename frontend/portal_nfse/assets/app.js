@@ -88,6 +88,14 @@ function normFilterValue(value) {
     .toLowerCase();
 }
 
+function normalizeQueuePriority(value) {
+  const txt = normFilterValue(value);
+  if (txt.startsWith('alt')) return 'alta';
+  if (txt.startsWith('med')) return 'media';
+  if (txt.startsWith('baix')) return 'baixa';
+  return 'baixa';
+}
+
 function normalizeQueueStatus(value) {
   const raw = String(value || '').toLowerCase();
   if (raw.includes('diverg')) return 'divergente';
@@ -97,13 +105,13 @@ function normalizeQueueStatus(value) {
 }
 
 function queuePriorityFromRow(row) {
-  const manual = String(row.prioridade_manual || '').trim().toLowerCase();
-  if (manual) return manual;
+  const hasManual = String(row.prioridade_manual || '').trim();
+  if (hasManual) return normalizeQueuePriority(row.prioridade_manual);
   const status = normalizeQueueStatus(row.status_fila || row.status_fila_manual || row.status);
   const hasMissing = !!String(row.campos_ausentes_xml || '').trim();
   const hasAlerts = hasQueueAlert(row);
   if (status === 'divergente' && hasMissing) return 'alta';
-  if (status === 'divergente' || hasAlerts) return 'média';
+  if (status === 'divergente' || hasAlerts) return 'media';
   return 'baixa';
 }
 
@@ -119,7 +127,7 @@ function queueSlaFromDate(dateValue, prioridade) {
   const elapsedHours = Math.max(0, Math.round((Date.now() - base.getTime()) / 36e5));
   const thresholds = {
     alta: { warn: 24, danger: 48 },
-    média: { warn: 36, danger: 72 },
+    media: { warn: 36, danger: 72 },
     baixa: { warn: 72, danger: 120 },
   }[prioridade] || { warn: 36, danger: 72 };
 
@@ -152,7 +160,7 @@ function getQueueAlertMeta(row) {
   if (hasQueueAlert(row)) {
     return { type: 'error', title: 'Alertas fiscais', text };
   }
-  return { type: 'info', title: 'Observacao fiscal', text };
+  return { type: 'info', title: 'Observação fiscal', text };
 }
 
 function mapQueueItem(row) {
@@ -451,8 +459,10 @@ function SectionHeader({ title, sub, actions }) {
 }
 
 function QueuePriorityBadge({ value }) {
-  const tone = value === 'alta' ? 'danger' : value === 'média' ? 'warn' : 'success';
-  return <Badge tone={tone}>{value || 'baixa'}</Badge>;
+  const normalized = normalizeQueuePriority(value);
+  const tone = normalized === 'alta' ? 'danger' : normalized === 'media' ? 'warn' : 'success';
+  const label = normalized === 'alta' ? 'Alta' : normalized === 'media' ? 'Média' : 'Baixa';
+  return <Badge tone={tone}>{label}</Badge>;
 }
 
 function QueueSlaBadge({ sla }) {
@@ -1692,7 +1702,12 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
     responsavel: '',
   });
 
-  const filaData = useAsync(() => api(baseUrl, '/nfse?page=1&page_size=500'), [baseUrl]);
+  const filaData = useAsync(() => {
+    const q = new URLSearchParams({ page: '1', page_size: '500' });
+    if (filters.status) q.set('status', filters.status);
+    if (filters.empresa) q.set('cert_alias', filters.empresa);
+    return api(baseUrl, `/nfse?${q.toString()}`);
+  }, [baseUrl, filters.status, filters.empresa]);
 
   const queueItems = useMemo(() => {
     return (filaData.data?.items || []).map(mapQueueItem);
@@ -1707,8 +1722,6 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
   }, [queueItems]);
 
   const filteredItems = queueItems.filter(item => {
-    if (filters.status && normFilterValue(item.queue_status) !== normFilterValue(filters.status)) return false;
-    if (filters.empresa && normFilterValue(item.queue_empresa_alias) !== normFilterValue(filters.empresa)) return false;
     if (filters.prioridade && normFilterValue(item.queue_prioridade) !== normFilterValue(filters.prioridade)) return false;
     if (filters.responsavel && normFilterValue(item.queue_responsavel) !== normFilterValue(filters.responsavel)) return false;
     return true;
@@ -1727,7 +1740,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
   useEffect(() => {
     setObsInterna(selected?.observacao_interna || '');
     setStatusFila(selected?.status_fila_manual || selected?.queue_status || 'pendente');
-    setPrioridadeFila(selected?.prioridade_manual || selected?.queue_prioridade || 'baixa');
+    setPrioridadeFila(normalizeQueuePriority(selected?.prioridade_manual || selected?.queue_prioridade || 'baixa'));
     setResponsavelFila(selected?.responsavel || '');
   }, [selected]);
 
@@ -1765,8 +1778,8 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
         prioridade_manual: prioridadeFila,
         responsavel: responsavelFila,
         queue_status: normalizeQueueStatus(statusFila),
-        queue_prioridade: prioridadeFila,
-        queue_responsavel: responsavelFila || 'NÃ£o atribuÃ­do',
+        queue_prioridade: normalizeQueuePriority(prioridadeFila),
+        queue_responsavel: responsavelFila || 'Não atribuído',
         queue_sla: queueSlaFromDate(prev.queue_entrada, prioridadeFila),
         updated_at: new Date().toISOString(),
       } : prev);
@@ -1838,7 +1851,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
               <select className="select" value={filters.prioridade} onChange={e => setFilter('prioridade', e.target.value)}>
                 <option value="">Todas</option>
                 <option value="alta">Alta</option>
-                <option value="média">Média</option>
+                <option value="media">Média</option>
                 <option value="baixa">Baixa</option>
               </select>
             </div>
@@ -1995,7 +2008,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                       <th>Tributo</th>
                       <th>Informado</th>
                       <th>Calculado</th>
-                      <th>Diferenca</th>
+                      <th>Diferença</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2019,7 +2032,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
 
             <div className="queue-detail-grid">
               <div className="queue-detail-block">
-                <div className="card-title" style={{ marginBottom: 12 }}>Analise interna</div>
+                <div className="card-title" style={{ marginBottom: 12 }}>Análise interna</div>
                 <div className="field">
                   <label className="label">Status da fila</label>
                   <select className="select" value={statusFila} onChange={e => setStatusFila(e.target.value)}>
@@ -2032,25 +2045,25 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                   <label className="label">Prioridade</label>
                   <select className="select" value={prioridadeFila} onChange={e => setPrioridadeFila(e.target.value)}>
                     <option value="alta">Alta</option>
-                    <option value="mÃ©dia">Media</option>
+                    <option value="media">Média</option>
                     <option value="baixa">Baixa</option>
                   </select>
                 </div>
                 <div className="field" style={{ marginTop: 12 }}>
-                  <label className="label">Responsavel</label>
+                  <label className="label">Responsável</label>
                   <input
                     className="input"
                     value={responsavelFila}
                     onChange={e => setResponsavelFila(e.target.value)}
-                    placeholder="Nome do responsavel"
+                    placeholder="Nome do responsável"
                   />
                 </div>
               </div>
 
               <div className="queue-detail-block">
-                <div className="card-title" style={{ marginBottom: 12 }}>Observacao interna</div>
+                <div className="card-title" style={{ marginBottom: 12 }}>Observação interna</div>
                 <div className="field">
-                  <label className="label">Anotacoes do auditor</label>
+                  <label className="label">Anotações do auditor</label>
                   <textarea
                     className="textarea"
                     value={obsInterna}
@@ -2063,7 +2076,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                       disabled={savingObs}
                       onClick={salvarObservacao}
                     >
-                      {savingObs ? <Spinner size={13} /> : 'Salvar analise'}
+                      {savingObs ? <Spinner size={13} /> : 'Salvar análise'}
                     </button>
                   </div>
                 </div>
