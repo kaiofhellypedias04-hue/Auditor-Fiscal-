@@ -1037,6 +1037,14 @@ tbody td.actions { white-space: nowrap; }
   white-space: nowrap;
 }
 
+.queue-table tbody tr {
+  cursor: pointer;
+}
+
+.queue-table tbody tr:hover {
+  background: rgba(126, 167, 255, .05);
+}
+
 .queue-row-attention {
   background: rgba(240, 101, 96, .05);
 }
@@ -1092,6 +1100,25 @@ tbody td.actions { white-space: nowrap; }
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   padding: 16px;
+}
+
+.queue-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.queue-compare-table table td,
+.queue-compare-table table th {
+  white-space: nowrap;
+}
+
+.compare-diff-danger {
+  color: var(--red);
+}
+
+.compare-diff-neutral {
+  color: var(--text-3);
 }
 
 .queue-detail-row {

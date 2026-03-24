@@ -108,7 +108,11 @@ class NotaReportRow(BaseModel):
     valor_liquido: Optional[float] = None
     valor_liquido_correto: Optional[float] = None
     status_valor_liquido: Optional[str] = None
+    irrf_calculado: Optional[float] = None
+    csrf_calculado: Optional[float] = None
+    iss_calculado: Optional[float] = None
     status: Optional[str] = None
+    status_fila: Optional[str] = None
     campos_ausentes_xml: Optional[str] = None
     incidencia_iss: Optional[str] = None
     codigo_servico: Optional[str] = None
@@ -116,6 +120,10 @@ class NotaReportRow(BaseModel):
     cnae: Optional[str] = None
     simples_nacional: Optional[str] = None
     alertas_fiscais: Optional[str] = None
+    observacao_interna: Optional[str] = None
+    status_fila_manual: Optional[str] = None
+    prioridade_manual: Optional[str] = None
+    responsavel: Optional[str] = None
     dia_processado: Optional[datetime] = None
 
 

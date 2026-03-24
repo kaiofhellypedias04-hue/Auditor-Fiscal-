@@ -44,6 +44,7 @@ from modules.notas_repo import (
     obter_resumo_processo,
     listar_notas_agrupadas,
     atualizar_nota_campos_editaveis,
+    garantir_schema_nfse_notas,
 )
 from modules.runner_processos import run_with_process, ProcessRunConfig, RunConfig
 from modules.storage import is_s3_configured, generate_presigned_download_url, limpar_arquivos_antigos_minio
@@ -128,6 +129,10 @@ class SenhaUpdate(BaseModel):
 class NotaEditRequest(BaseModel):
     valor_liquido_correto: Optional[float] = None
     alertas_fiscais: Optional[str] = None
+    observacao_interna: Optional[str] = None
+    status_fila_manual: Optional[str] = None
+    prioridade_manual: Optional[str] = None
+    responsavel: Optional[str] = None
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -198,6 +203,7 @@ def _get_aliases_validos(login_type: LoginTypeEnum) -> set:
 @app.on_event("startup")
 def startup_event():
     garantir_schema_nfse_execucoes()
+    garantir_schema_nfse_notas()
 
     # Restaurar agendamentos que estavam ativos antes da última reinicialização
     def _factory(payload: dict):
@@ -679,6 +685,10 @@ def atualizar_nota(nota_id: int, data: NotaEditRequest):
     Permite ao auditor salvar edições nos campos editáveis do relatório interativo:
     - valor_liquido_correto: valor correto calculado/corrigido manualmente
     - alertas_fiscais: anotações e alertas do auditor
+    - observacao_interna: anotações operacionais internas
+    - status_fila_manual: status manual da fila operacional
+    - prioridade_manual: prioridade manual da fila
+    - responsavel: responsável atual pela análise
 
     O status_valor_liquido é recalculado automaticamente.
     """
@@ -686,6 +696,10 @@ def atualizar_nota(nota_id: int, data: NotaEditRequest):
         nota_id=nota_id,
         valor_liquido_correto=data.valor_liquido_correto,
         alertas_fiscais=data.alertas_fiscais,
+        observacao_interna=data.observacao_interna,
+        status_fila_manual=data.status_fila_manual,
+        prioridade_manual=data.prioridade_manual,
+        responsavel=data.responsavel,
     )
     if not ok:
         raise HTTPException(status_code=404, detail=f"Nota {nota_id} não encontrada")

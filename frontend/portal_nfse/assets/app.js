@@ -84,11 +84,14 @@ function normalizeQueueStatus(value) {
   const raw = String(value || '').toLowerCase();
   if (raw.includes('diverg')) return 'divergente';
   if (raw.includes('corret')) return 'correta';
+  if (raw.includes('pend')) return 'pendente';
   return value || 'pendente';
 }
 
 function queuePriorityFromRow(row) {
-  const status = normalizeQueueStatus(row.status);
+  const manual = String(row.prioridade_manual || '').trim().toLowerCase();
+  if (manual) return manual;
+  const status = normalizeQueueStatus(row.status_fila || row.status_fila_manual || row.status);
   const hasMissing = !!String(row.campos_ausentes_xml || '').trim();
   const hasAlerts = !!String(row.alertas_fiscais || '').trim();
   if (status === 'divergente' && hasMissing) return 'alta';
@@ -126,13 +129,14 @@ function queueDivergenciaLabel(row) {
 }
 
 function mapQueueItem(row) {
+  const statusFila = row.status_fila || row.status_fila_manual || row.status;
   const prioridade = queuePriorityFromRow(row);
   const responsavel = queueResponsavelFromRow(row);
   const entrada = row.updated_at || row.created_at || null;
 
   return {
     ...row,
-    queue_status: normalizeQueueStatus(row.status),
+    queue_status: normalizeQueueStatus(statusFila),
     queue_empresa: clientName(row.certificado || row.cert_alias || ''),
     queue_empresa_alias: row.certificado || row.cert_alias || '',
     queue_prestador: row.razao_social || row.parte_exibicao_nome || '—',
@@ -143,6 +147,24 @@ function mapQueueItem(row) {
     queue_entrada: entrada,
     queue_sla: queueSlaFromDate(entrada, prioridade),
   };
+}
+
+function buildQueueTributosComparativo(row) {
+  const toNum = v => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const make = (label, informado, calculado) => ({
+    label,
+    informado: toNum(informado),
+    calculado: toNum(calculado),
+  });
+
+  return [
+    make('IRRF', row.irrf, row.irrf_calculado),
+    make('CSRF', row.csrf, row.csrf_calculado),
+    make('ISS', row.iss, row.iss_calculado != null ? row.iss_calculado : row.iss),
+  ];
 }
 
 async function api(baseUrl, path, opts = {}) {
@@ -1631,6 +1653,11 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selected, setSelected] = useState(null);
+  const [obsInterna, setObsInterna] = useState('');
+  const [statusFila, setStatusFila] = useState('pendente');
+  const [prioridadeFila, setPrioridadeFila] = useState('baixa');
+  const [responsavelFila, setResponsavelFila] = useState('');
+  const [savingObs, setSavingObs] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
     empresa: '',
@@ -1672,9 +1699,55 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
     if (page > totalPages) setPage(1);
   }, [filteredItems.length, page, pageSize]);
 
+  useEffect(() => {
+    setObsInterna(selected?.observacao_interna || '');
+    setStatusFila(selected?.status_fila_manual || selected?.queue_status || 'pendente');
+    setPrioridadeFila(selected?.prioridade_manual || selected?.queue_prioridade || 'baixa');
+    setResponsavelFila(selected?.responsavel || '');
+  }, [selected]);
+
   const setFilter = (key, value) => {
     setPage(1);
     setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const tributosComparativo = useMemo(() => {
+    return selected ? buildQueueTributosComparativo(selected) : [];
+  }, [selected]);
+
+  const salvarObservacao = async () => {
+    if (!selected) return;
+    setSavingObs(true);
+    try {
+      await api(baseUrl, `/nfse/${selected.id}`, {
+        method: 'PUT',
+        body: {
+          observacao_interna: obsInterna,
+          status_fila_manual: statusFila,
+          prioridade_manual: prioridadeFila,
+          responsavel: responsavelFila,
+        },
+      });
+      setSelected(prev => prev ? {
+        ...prev,
+        observacao_interna: obsInterna,
+        status_fila_manual: statusFila,
+        status_fila: statusFila,
+        prioridade_manual: prioridadeFila,
+        responsavel: responsavelFila,
+        queue_status: normalizeQueueStatus(statusFila),
+        queue_prioridade: prioridadeFila,
+        queue_responsavel: responsavelFila || 'NÃ£o atribuÃ­do',
+        queue_sla: queueSlaFromDate(prev.queue_entrada, prioridadeFila),
+        updated_at: new Date().toISOString(),
+      } : prev);
+      toast('Análise interna salva com sucesso.', 'success');
+      filaData.reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setSavingObs(false);
+    }
   };
 
   return (
@@ -1783,7 +1856,11 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                     {!paginatedItems.length ? (
                       <Empty msg="Nenhuma nota encontrada para os filtros atuais." />
                     ) : paginatedItems.map(item => (
-                      <tr key={item.id} className={item.queue_sla.tone === 'danger' ? 'queue-row-attention' : ''}>
+                      <tr
+                        key={item.id}
+                        className={item.queue_sla.tone === 'danger' ? 'queue-row-attention' : ''}
+                        onClick={() => setSelected(item)}
+                      >
                         <td className="primary mono">{item.queue_numero_nota}</td>
                         <td>{item.queue_empresa}</td>
                         <td style={{ maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.queue_prestador}>
@@ -1801,7 +1878,10 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                         <td className="mono">{fmtDate(item.queue_entrada)}</td>
                         <td><QueueSlaBadge sla={item.queue_sla} /></td>
                         <td className="actions">
-                          <button className="btn btn-primary btn-xs" onClick={() => setSelected(item)}>
+                          <button
+                            className="btn btn-primary btn-xs"
+                            onClick={e => { e.stopPropagation(); setSelected(item); }}
+                          >
                             Analisar
                           </button>
                         </td>
@@ -1874,6 +1954,90 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                 <div className="queue-detail-row"><span>INSS</span><strong>{fmtMoney(selected.inss)}</strong></div>
                 <div className="queue-detail-row"><span>ISS</span><strong>{fmtMoney(selected.iss)}</strong></div>
                 <div className="queue-detail-row"><span>Atualização</span><strong>{fmtDate(selected.updated_at || selected.created_at)}</strong></div>
+              </div>
+            </div>
+
+            <div className="queue-detail-block">
+              <div className="card-title" style={{ marginBottom: 12 }}>Comparativo de tributos</div>
+              <div className="table-wrap queue-compare-table" style={{ border: 'none', borderRadius: 0 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Tributo</th>
+                      <th>Informado</th>
+                      <th>Calculado</th>
+                      <th>DiferenÃ§a</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tributosComparativo.map(item => {
+                      const diff = item.calculado - item.informado;
+                      const tone = Math.abs(diff) > 0.009 ? 'danger' : 'neutral';
+                      const diffLabel = Math.abs(diff) > 0.009 ? `${diff > 0 ? '+' : ''}${fmtMoney(diff)}` : '-';
+                      return (
+                        <tr key={item.label}>
+                          <td className="primary">{item.label}</td>
+                          <td className="mono right">{fmtMoney(item.informado)}</td>
+                          <td className="mono right">{fmtMoney(item.calculado)}</td>
+                          <td className={`mono right compare-diff compare-diff-${tone}`}>{diffLabel}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="queue-detail-grid">
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>AnÃ¡lise interna</div>
+                <div className="field">
+                  <label className="label">Status da fila</label>
+                  <select className="select" value={statusFila} onChange={e => setStatusFila(e.target.value)}>
+                    <option value="pendente">Pendente</option>
+                    <option value="divergente">Divergente</option>
+                    <option value="correta">Correta</option>
+                  </select>
+                </div>
+                <div className="field" style={{ marginTop: 12 }}>
+                  <label className="label">Prioridade</label>
+                  <select className="select" value={prioridadeFila} onChange={e => setPrioridadeFila(e.target.value)}>
+                    <option value="alta">Alta</option>
+                    <option value="mÃ©dia">MÃ©dia</option>
+                    <option value="baixa">Baixa</option>
+                  </select>
+                </div>
+                <div className="field" style={{ marginTop: 12 }}>
+                  <label className="label">ResponsÃ¡vel</label>
+                  <input
+                    className="input"
+                    value={responsavelFila}
+                    onChange={e => setResponsavelFila(e.target.value)}
+                    placeholder="Nome do responsÃ¡vel"
+                  />
+                </div>
+              </div>
+
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>ObservaÃ§Ã£o interna</div>
+                <div className="field">
+                  <label className="label">AnotaÃ§Ãµes do auditor</label>
+                  <textarea
+                    className="textarea"
+                    value={obsInterna}
+                    onChange={e => setObsInterna(e.target.value)}
+                    placeholder="Registre contexto, decisÃ£o tomada ou encaminhamento interno."
+                  />
+                  <div className="queue-detail-actions">
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={savingObs}
+                      onClick={salvarObservacao}
+                    >
+                      {savingObs ? <Spinner size={13} /> : 'Salvar anÃ¡lise'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

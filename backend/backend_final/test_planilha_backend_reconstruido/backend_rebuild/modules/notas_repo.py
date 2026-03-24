@@ -21,6 +21,8 @@ STATUS_EXPR = """(
     END
 )"""
 
+STATUS_FILA_EXPR = f"""COALESCE(NULLIF(n.status_fila_manual, ''), {STATUS_EXPR})"""
+
 
 def garantir_schema_nfse_notas():
     with get_conn() as conn:
@@ -63,6 +65,13 @@ def garantir_schema_nfse_notas():
           status_valor_liquido TEXT,
           campos_ausentes_xml TEXT,
           alertas_fiscais TEXT,
+          irrf_calculado NUMERIC,
+          csrf_calculado NUMERIC,
+          iss_calculado NUMERIC,
+          observacao_interna TEXT,
+          status_fila_manual TEXT,
+          prioridade_manual TEXT,
+          responsavel TEXT,
           tipo_nota TEXT,
           parte_exibicao_nome TEXT,
           parte_exibicao_doc TEXT,
@@ -83,10 +92,19 @@ def garantir_schema_nfse_notas():
         conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS valor_liquido_correto NUMERIC")
         conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS status_valor_liquido TEXT")
         conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS campos_ausentes_xml TEXT")
+        conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS irrf_calculado NUMERIC")
+        conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS csrf_calculado NUMERIC")
+        conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS iss_calculado NUMERIC")
+        conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS observacao_interna TEXT")
+        conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS status_fila_manual TEXT")
+        conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS prioridade_manual TEXT")
+        conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS responsavel TEXT")
         conn.execute("ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT now()")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_nfse_notas_cert_chave ON nfse_notas (cert_alias, chave_nfse)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nfse_notas_processo ON nfse_notas (processo_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nfse_notas_tipo_nota ON nfse_notas (tipo_nota)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_nfse_notas_status_fila_manual ON nfse_notas (status_fila_manual)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_nfse_notas_responsavel ON nfse_notas (responsavel)")
         conn.execute("""
         CREATE TABLE IF NOT EXISTS nfse_processo_notas (
           processo_id UUID NOT NULL,
@@ -115,6 +133,13 @@ def _to_text_alertas(value: Any) -> Optional[str]:
             if v_txt:
                 partes.append(f"{k_txt}: {v_txt}" if k_txt else v_txt)
         return " | ".join(partes) if partes else None
+    txt = str(value).strip()
+    return txt or None
+
+
+def _clean_text(value: Any) -> Optional[str]:
+    if value is None:
+        return None
     txt = str(value).strip()
     return txt or None
 
@@ -285,6 +310,9 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
 
     campos_ausentes_xml  = _build_campos_ausentes_xml(data)
     alertas_fiscais_txt  = _to_text_alertas(data.get("Alertas Fiscais"))
+    irrf_calculado       = _to_decimal(data.get("_IRRF_Calculado"))
+    csrf_calculado       = _to_decimal(data.get("_CSRF_Calculado"))
+    iss_calculado        = _to_decimal(data.get("_ISS_Calculado"))
 
     with get_conn() as conn:
         row = conn.execute(
@@ -301,6 +329,7 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
               simples_xml, consulta_simples_api,
               status_simples_nacional, status_csrf, status_irrf, status_inss, status_base_calculo, status_valor_liquido,
               campos_ausentes_xml, alertas_fiscais,
+              irrf_calculado, csrf_calculado, iss_calculado,
               dados_completos, arquivo_origem,
               updated_at
             )
@@ -315,6 +344,7 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
               %s,%s,
               %s,%s,%s,%s,%s,%s,
               %s,%s,
+              %s,%s,%s,
               %s,%s,
               now()
             )
@@ -356,6 +386,9 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
               status_valor_liquido = EXCLUDED.status_valor_liquido,
               campos_ausentes_xml = EXCLUDED.campos_ausentes_xml,
               alertas_fiscais = EXCLUDED.alertas_fiscais,
+              irrf_calculado = EXCLUDED.irrf_calculado,
+              csrf_calculado = EXCLUDED.csrf_calculado,
+              iss_calculado = EXCLUDED.iss_calculado,
               dados_completos = EXCLUDED.dados_completos,
               arquivo_origem = COALESCE(EXCLUDED.arquivo_origem, nfse_notas.arquivo_origem),
               updated_at = now()
@@ -377,6 +410,7 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
                 data.get("Status IRRF"), data.get("Status INSS"),
                 status_base_calculo, status_valor_liquido,
                 campos_ausentes_xml, alertas_fiscais_txt,
+                irrf_calculado, csrf_calculado, iss_calculado,
                 Jsonb(data), arquivo_origem,
             ),
         ).fetchone()
@@ -399,15 +433,27 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
     return chave_nfse
 
 
-def atualizar_nota_campos_editaveis(nota_id: int, valor_liquido_correto: Optional[float], alertas_fiscais: Optional[str]) -> bool:
+def atualizar_nota_campos_editaveis(
+    nota_id: int,
+    valor_liquido_correto: Optional[float],
+    alertas_fiscais: Optional[str],
+    observacao_interna: Optional[str] = None,
+    status_fila_manual: Optional[str] = None,
+    prioridade_manual: Optional[str] = None,
+    responsavel: Optional[str] = None,
+) -> bool:
     """
-    Permite ao portal sobrescrever apenas os campos editáveis pelo auditor:
-    valor_liquido_correto e alertas_fiscais.
+    Permite ao portal sobrescrever apenas os campos editáveis pelo auditor.
     Recalcula status_valor_liquido automaticamente após a edição.
     """
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT valor_liquido, valor_liquido_correto FROM nfse_notas WHERE id = %s",
+            """
+            SELECT valor_liquido, valor_liquido_correto, alertas_fiscais,
+                   observacao_interna, status_fila_manual, prioridade_manual, responsavel
+            FROM nfse_notas
+            WHERE id = %s
+            """,
             (nota_id,)
         ).fetchone()
 
@@ -417,17 +463,26 @@ def atualizar_nota_campos_editaveis(nota_id: int, valor_liquido_correto: Optiona
         novo_correto = valor_liquido_correto if valor_liquido_correto is not None else row["valor_liquido_correto"]
         valor_liquido = row["valor_liquido"]
         novo_status = _status_compare(valor_liquido, novo_correto)
+        novos_alertas = alertas_fiscais if alertas_fiscais is not None else row["alertas_fiscais"]
+        nova_obs = observacao_interna if observacao_interna is not None else row["observacao_interna"]
+        novo_status_fila_manual = _clean_text(status_fila_manual) if status_fila_manual is not None else row["status_fila_manual"]
+        nova_prioridade = _clean_text(prioridade_manual) if prioridade_manual is not None else row["prioridade_manual"]
+        novo_responsavel = _clean_text(responsavel) if responsavel is not None else row["responsavel"]
 
         conn.execute(
             """
             UPDATE nfse_notas
             SET valor_liquido_correto = %s,
                 alertas_fiscais = %s,
+                observacao_interna = %s,
+                status_fila_manual = %s,
+                prioridade_manual = %s,
+                responsavel = %s,
                 status_valor_liquido = %s,
                 updated_at = now()
             WHERE id = %s
             """,
-            (novo_correto, alertas_fiscais, novo_status, nota_id),
+            (novo_correto, novos_alertas, nova_obs, novo_status_fila_manual, nova_prioridade, novo_responsavel, novo_status, nota_id),
         )
     return True
 
@@ -445,7 +500,7 @@ def _build_where(filters: Optional[dict], processo_id: Optional[str] = None) -> 
     if filters:
         status = filters.get("status")
         if status:
-            where_clauses.append(f"{STATUS_EXPR} = %s")
+            where_clauses.append(f"{STATUS_FILA_EXPR} = %s")
             params.append(status)
 
         municipio = filters.get("municipio")
@@ -474,7 +529,7 @@ def _build_where(filters: Optional[dict], processo_id: Optional[str] = None) -> 
             params.append(cert_alias)
 
         if filters.get("somente_divergentes"):
-            where_clauses.append(f"{STATUS_EXPR} = 'divergente'")
+            where_clauses.append(f"{STATUS_FILA_EXPR} = 'divergente'")
 
     where = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
     return where, params
@@ -517,7 +572,11 @@ def listar_notas_por_processo(
                    n.valor_liquido,
                    n.valor_liquido_correto,
                    n.status_valor_liquido,
+                   n.irrf_calculado,
+                   n.csrf_calculado,
+                   n.iss_calculado,
                    {STATUS_EXPR} as status,
+                   {STATUS_FILA_EXPR} as status_fila,
                    n.campos_ausentes_xml,
                    n.incidencia_iss,
                    n.data_pagamento,
@@ -534,6 +593,10 @@ def listar_notas_por_processo(
                    n.status_inss,
                    n.status_base_calculo,
                    n.alertas_fiscais,
+                   n.observacao_interna,
+                   n.status_fila_manual,
+                   n.prioridade_manual,
+                   n.responsavel,
                    n.created_at as dia_processado,
                    n.updated_at
             FROM nfse_notas n
@@ -579,12 +642,21 @@ def listar_notas_agrupadas(filters: Optional[dict] = None, page: int = 1, page_s
                    n.valor_liquido,
                    n.valor_liquido_correto,
                    n.status_valor_liquido,
+                   n.csrf,
                    n.irrf,
                    n.iss,
                    n.inss,
+                   n.irrf_calculado,
+                   n.csrf_calculado,
+                   n.iss_calculado,
                    {STATUS_EXPR} as status,
+                   {STATUS_FILA_EXPR} as status_fila,
                    n.campos_ausentes_xml,
                    n.alertas_fiscais,
+                   n.observacao_interna,
+                   n.status_fila_manual,
+                   n.prioridade_manual,
+                   n.responsavel,
                    n.created_at,
                    n.updated_at
             FROM nfse_notas n

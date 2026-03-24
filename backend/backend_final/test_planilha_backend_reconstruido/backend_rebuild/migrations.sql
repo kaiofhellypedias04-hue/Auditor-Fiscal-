@@ -63,6 +63,13 @@ CREATE TABLE IF NOT EXISTS nfse_notas (
   status_inss TEXT,
   status_base_calculo TEXT,
   alertas_fiscais TEXT,
+  irrf_calculado NUMERIC,
+  csrf_calculado NUMERIC,
+  iss_calculado NUMERIC,
+  observacao_interna TEXT,
+  status_fila_manual TEXT,
+  prioridade_manual TEXT,
+  responsavel TEXT,
   dados_completos JSONB NOT NULL,
   arquivo_origem TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
@@ -72,10 +79,19 @@ CREATE TABLE IF NOT EXISTS nfse_notas (
 ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS cert_alias TEXT;
 ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS processo_id UUID;
 ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS chave_nfse TEXT;
+ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS irrf_calculado NUMERIC;
+ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS csrf_calculado NUMERIC;
+ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS iss_calculado NUMERIC;
+ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS observacao_interna TEXT;
+ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS status_fila_manual TEXT;
+ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS prioridade_manual TEXT;
+ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS responsavel TEXT;
 ALTER TABLE nfse_notas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT now();
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_nfse_notas_cert_chave ON nfse_notas (cert_alias, chave_nfse);
 CREATE INDEX IF NOT EXISTS idx_nfse_notas_processo ON nfse_notas (processo_id);
+CREATE INDEX IF NOT EXISTS idx_nfse_notas_status_fila_manual ON nfse_notas (status_fila_manual);
+CREATE INDEX IF NOT EXISTS idx_nfse_notas_responsavel ON nfse_notas (responsavel);
 
 -- 4) Processos NFS-e
 CREATE TABLE IF NOT EXISTS nfse_processos (
