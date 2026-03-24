@@ -1982,7 +1982,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                       <th>Tributo</th>
                       <th>Informado</th>
                       <th>Calculado</th>
-                      <th>DiferenÃ§a</th>
+                      <th>Diferenca</th>
                     </tr>
                   </thead>
                   <tbody>
