@@ -1697,15 +1697,13 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
     };
   }, [queueItems]);
 
-  const filteredItems = useMemo(() => {
-    return queueItems.filter(item => {
-      if (filters.status && normFilterValue(item.queue_status) !== normFilterValue(filters.status)) return false;
-      if (filters.empresa && normFilterValue(item.queue_empresa_alias) !== normFilterValue(filters.empresa)) return false;
-      if (filters.prioridade && normFilterValue(item.queue_prioridade) !== normFilterValue(filters.prioridade)) return false;
-      if (filters.responsavel && normFilterValue(item.queue_responsavel) !== normFilterValue(filters.responsavel)) return false;
-      return true;
-    });
-  }, [queueItems, filters]);
+  const filteredItems = queueItems.filter(item => {
+    if (filters.status && normFilterValue(item.queue_status) !== normFilterValue(filters.status)) return false;
+    if (filters.empresa && normFilterValue(item.queue_empresa_alias) !== normFilterValue(filters.empresa)) return false;
+    if (filters.prioridade && normFilterValue(item.queue_prioridade) !== normFilterValue(filters.prioridade)) return false;
+    if (filters.responsavel && normFilterValue(item.queue_responsavel) !== normFilterValue(filters.responsavel)) return false;
+    return true;
+  });
 
   const paginatedItems = useMemo(() => {
     const start = (page - 1) * pageSize;
