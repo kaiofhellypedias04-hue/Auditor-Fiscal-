@@ -8,6 +8,7 @@ const MENU = [
   { key: 'dashboard',    label: 'Dashboard',       section: 'visão geral',  icon: IconDashboard },
   { key: 'execucao',     label: 'Execução',         section: 'operações',    icon: IconPlay },
   { key: 'agendamentos', label: 'Agendamentos',     section: 'operações',    icon: IconClock },
+  { key: 'fila_trabalho',label: 'Fila de Trabalho', section: 'operações',    icon: IconFolder },
   { key: 'processos',    label: 'Processos',        section: 'dados',        icon: IconProcess },
   { key: 'nfse',         label: 'NFS-e',            section: 'dados',        icon: IconDoc },
   { key: 'relatorio',    label: 'Relatório',        section: 'dados',        icon: IconChart },
@@ -77,6 +78,71 @@ function clientName(alias) {
   if (!alias) return 'Cliente';
   if (alias.includes(' - ')) return alias.split(' - ').slice(1).join(' - ').trim();
   return alias;
+}
+
+function normalizeQueueStatus(value) {
+  const raw = String(value || '').toLowerCase();
+  if (raw.includes('diverg')) return 'divergente';
+  if (raw.includes('corret')) return 'correta';
+  return value || 'pendente';
+}
+
+function queuePriorityFromRow(row) {
+  const status = normalizeQueueStatus(row.status);
+  const hasMissing = !!String(row.campos_ausentes_xml || '').trim();
+  const hasAlerts = !!String(row.alertas_fiscais || '').trim();
+  if (status === 'divergente' && hasMissing) return 'alta';
+  if (status === 'divergente' || hasAlerts) return 'média';
+  return 'baixa';
+}
+
+function queueResponsavelFromRow(row) {
+  return row.responsavel || 'Não atribuído';
+}
+
+function queueSlaFromDate(dateValue, prioridade) {
+  if (!dateValue) return { label: 'Sem prazo', tone: 'neutral', hours: null };
+  const base = new Date(dateValue);
+  if (isNaN(base)) return { label: 'Sem prazo', tone: 'neutral', hours: null };
+
+  const elapsedHours = Math.max(0, Math.round((Date.now() - base.getTime()) / 36e5));
+  const thresholds = {
+    alta: { warn: 24, danger: 48 },
+    média: { warn: 36, danger: 72 },
+    baixa: { warn: 72, danger: 120 },
+  }[prioridade] || { warn: 36, danger: 72 };
+
+  if (elapsedHours >= thresholds.danger) return { label: `${elapsedHours}h`, tone: 'danger', hours: elapsedHours };
+  if (elapsedHours >= thresholds.warn) return { label: `${elapsedHours}h`, tone: 'warn', hours: elapsedHours };
+  return { label: `${elapsedHours}h`, tone: 'ok', hours: elapsedHours };
+}
+
+function queueDivergenciaLabel(row) {
+  const missing = String(row.campos_ausentes_xml || '').trim();
+  const alerts = String(row.alertas_fiscais || '').trim();
+  if (missing) return 'Campos ausentes';
+  if (alerts) return 'Alerta fiscal';
+  return 'Sem divergência';
+}
+
+function mapQueueItem(row) {
+  const prioridade = queuePriorityFromRow(row);
+  const responsavel = queueResponsavelFromRow(row);
+  const entrada = row.updated_at || row.created_at || null;
+
+  return {
+    ...row,
+    queue_status: normalizeQueueStatus(row.status),
+    queue_empresa: clientName(row.certificado || row.cert_alias || ''),
+    queue_empresa_alias: row.certificado || row.cert_alias || '',
+    queue_prestador: row.razao_social || row.parte_exibicao_nome || '—',
+    queue_numero_nota: row.numero_documento || row.chave_acesso || `Nota ${row.id}`,
+    queue_prioridade: prioridade,
+    queue_responsavel: responsavel,
+    queue_divergencia: queueDivergenciaLabel(row),
+    queue_entrada: entrada,
+    queue_sla: queueSlaFromDate(entrada, prioridade),
+  };
 }
 
 async function api(baseUrl, path, opts = {}) {
@@ -333,6 +399,15 @@ function SectionHeader({ title, sub, actions }) {
       {actions && <div className="section-actions">{actions}</div>}
     </div>
   );
+}
+
+function QueuePriorityBadge({ value }) {
+  const tone = value === 'alta' ? 'danger' : value === 'média' ? 'warn' : 'success';
+  return <Badge tone={tone}>{value || 'baixa'}</Badge>;
+}
+
+function QueueSlaBadge({ sla }) {
+  return <span className={cn('sla-pill', `sla-pill-${sla?.tone || 'neutral'}`)}>{sla?.label || 'Sem prazo'}</span>;
 }
 
 function FilterBar({ children, label = 'Filtros' }) {
@@ -1552,6 +1627,262 @@ function ProcessosPage({ baseUrl, toast }) {
 // Nível 1: empresas únicas com totais
 // Nível 2: ao clicar na empresa, mostra todas as notas dela
 
+function FilaDeTrabalhoPage({ baseUrl, toast }) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [selected, setSelected] = useState(null);
+  const [filters, setFilters] = useState({
+    status: '',
+    empresa: '',
+    prioridade: '',
+    responsavel: '',
+  });
+
+  const filaData = useAsync(() => api(baseUrl, '/nfse?page=1&page_size=500'), [baseUrl]);
+
+  const queueItems = useMemo(() => {
+    return (filaData.data?.items || []).map(mapQueueItem);
+  }, [filaData.data]);
+
+  const filterOptions = useMemo(() => {
+    const uniq = arr => [...new Set(arr.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+    return {
+      empresas: uniq(queueItems.map(item => item.queue_empresa_alias)),
+      responsaveis: uniq(queueItems.map(item => item.queue_responsavel)),
+    };
+  }, [queueItems]);
+
+  const filteredItems = useMemo(() => {
+    return queueItems.filter(item => {
+      if (filters.status && item.queue_status !== filters.status) return false;
+      if (filters.empresa && item.queue_empresa_alias !== filters.empresa) return false;
+      if (filters.prioridade && item.queue_prioridade !== filters.prioridade) return false;
+      if (filters.responsavel && item.queue_responsavel !== filters.responsavel) return false;
+      return true;
+    });
+  }, [queueItems, filters]);
+
+  const paginatedItems = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, page, pageSize]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+    if (page > totalPages) setPage(1);
+  }, [filteredItems.length, page, pageSize]);
+
+  const setFilter = (key, value) => {
+    setPage(1);
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  return (
+    <div className="page-enter">
+      <SectionHeader
+        title="Fila de Trabalho"
+        sub="Visão operacional das notas em análise no portal"
+        actions={
+          <button className="btn btn-ghost btn-sm" onClick={filaData.reload}>
+            <IconRefresh /> Atualizar
+          </button>
+        }
+      />
+
+      <div className="queue-grid">
+        <div className="card">
+          <div className="card-body queue-toolbar">
+            <div className="empresa-card-metric">
+              <div className="stat-label">Notas na fila</div>
+              <div className="stat-value" style={{ fontSize: 22 }}>{filteredItems.length}</div>
+            </div>
+            <div className="empresa-card-metric">
+              <div className="stat-label">Alta prioridade</div>
+              <div className="stat-value" style={{ fontSize: 22, color: 'var(--red)' }}>
+                {filteredItems.filter(item => item.queue_prioridade === 'alta').length}
+              </div>
+            </div>
+            <div className="empresa-card-metric">
+              <div className="stat-label">SLA crítico</div>
+              <div className="stat-value" style={{ fontSize: 22, color: 'var(--amber)' }}>
+                {filteredItems.filter(item => item.queue_sla.tone === 'danger').length}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <FilterBar label="Filtros da fila">
+          <div className="form-grid form-cols-4" style={{ marginTop: 16 }}>
+            <div className="field">
+              <label className="label">Status</label>
+              <select className="select" value={filters.status} onChange={e => setFilter('status', e.target.value)}>
+                <option value="">Todos</option>
+                <option value="divergente">Divergente</option>
+                <option value="correta">Correta</option>
+                <option value="pendente">Pendente</option>
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Empresa</label>
+              <select className="select" value={filters.empresa} onChange={e => setFilter('empresa', e.target.value)}>
+                <option value="">Todas</option>
+                {filterOptions.empresas.map(alias => (
+                  <option key={alias} value={alias}>{clientName(alias)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Prioridade</label>
+              <select className="select" value={filters.prioridade} onChange={e => setFilter('prioridade', e.target.value)}>
+                <option value="">Todas</option>
+                <option value="alta">Alta</option>
+                <option value="média">Média</option>
+                <option value="baixa">Baixa</option>
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Responsável</label>
+              <select className="select" value={filters.responsavel} onChange={e => setFilter('responsavel', e.target.value)}>
+                <option value="">Todos</option>
+                {filterOptions.responsaveis.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </FilterBar>
+
+        {filaData.error && <Alert type="error">{filaData.error}</Alert>}
+
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Fila operacional</span>
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            {filaData.loading ? (
+              <div style={{ padding: 24 }}><Loading label="Carregando fila..." /></div>
+            ) : (
+              <div className="table-wrap scrollable queue-table" style={{ border: 'none', borderRadius: 0 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>N° da nota</th>
+                      <th>Empresa</th>
+                      <th>Prestador</th>
+                      <th>Valor</th>
+                      <th>Status</th>
+                      <th>Divergência</th>
+                      <th>Prioridade</th>
+                      <th>Responsável</th>
+                      <th>Entrada</th>
+                      <th>SLA</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!paginatedItems.length ? (
+                      <Empty msg="Nenhuma nota encontrada para os filtros atuais." />
+                    ) : paginatedItems.map(item => (
+                      <tr key={item.id} className={item.queue_sla.tone === 'danger' ? 'queue-row-attention' : ''}>
+                        <td className="primary mono">{item.queue_numero_nota}</td>
+                        <td>{item.queue_empresa}</td>
+                        <td style={{ maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.queue_prestador}>
+                          {item.queue_prestador}
+                        </td>
+                        <td className="mono right">{fmtMoney(item.valor_total)}</td>
+                        <td><StatusBadge value={item.queue_status} /></td>
+                        <td>
+                          <Badge tone={item.queue_divergencia === 'Sem divergência' ? 'success' : 'warn'}>
+                            {item.queue_divergencia}
+                          </Badge>
+                        </td>
+                        <td><QueuePriorityBadge value={item.queue_prioridade} /></td>
+                        <td>{item.queue_responsavel}</td>
+                        <td className="mono">{fmtDate(item.queue_entrada)}</td>
+                        <td><QueueSlaBadge sla={item.queue_sla} /></td>
+                        <td className="actions">
+                          <button className="btn btn-primary btn-xs" onClick={() => setSelected(item)}>
+                            Analisar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filteredItems.length}
+          onPage={setPage}
+          onSize={s => { setPageSize(s); setPage(1); }}
+        />
+      </div>
+
+      <Modal open={!!selected} title={selected ? `Analisar nota — ${selected.queue_numero_nota}` : 'Analisar nota'} onClose={() => setSelected(null)} wide>
+        {!selected ? null : (
+          <div className="queue-detail">
+            <div className="queue-detail-grid">
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>Resumo operacional</div>
+                <div className="queue-detail-row"><span>Empresa</span><strong>{selected.queue_empresa}</strong></div>
+                <div className="queue-detail-row"><span>Prestador</span><strong>{selected.queue_prestador}</strong></div>
+                <div className="queue-detail-row"><span>Valor</span><strong>{fmtMoney(selected.valor_total)}</strong></div>
+                <div className="queue-detail-row"><span>Entrada</span><strong>{fmtDate(selected.queue_entrada)}</strong></div>
+                <div className="queue-detail-row"><span>Responsável</span><strong>{selected.queue_responsavel}</strong></div>
+              </div>
+
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>Classificação</div>
+                <div className="queue-detail-row"><span>Status</span><StatusBadge value={selected.queue_status} /></div>
+                <div className="queue-detail-row"><span>Prioridade</span><QueuePriorityBadge value={selected.queue_prioridade} /></div>
+                <div className="queue-detail-row"><span>SLA</span><QueueSlaBadge sla={selected.queue_sla} /></div>
+                <div className="queue-detail-row"><span>Divergência</span><Badge tone={selected.queue_divergencia === 'Sem divergência' ? 'success' : 'warn'}>{selected.queue_divergencia}</Badge></div>
+              </div>
+            </div>
+
+            {!!selected.campos_ausentes_xml && (
+              <Alert type="warn">
+                <strong>Campos ausentes no XML:</strong> {selected.campos_ausentes_xml}
+              </Alert>
+            )}
+
+            {!!selected.alertas_fiscais && (
+              <Alert type="error">
+                <strong>Alertas fiscais:</strong> {selected.alertas_fiscais}
+              </Alert>
+            )}
+
+            <div className="queue-detail-grid">
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>Identificação da nota</div>
+                <div className="queue-detail-row"><span>ID</span><strong className="mono">{selected.id}</strong></div>
+                <div className="queue-detail-row"><span>Processo</span><strong className="mono">{selected.processo_id || '—'}</strong></div>
+                <div className="queue-detail-row"><span>Chave</span><strong className="mono">{selected.chave_acesso || '—'}</strong></div>
+                <div className="queue-detail-row"><span>CNPJ/CPF</span><strong>{selected.cnpj_cpf || '—'}</strong></div>
+                <div className="queue-detail-row"><span>Tipo</span><strong>{selected.tipo_nota || '—'}</strong></div>
+              </div>
+
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>Contexto operacional</div>
+                <div className="queue-detail-row"><span>Valor líquido</span><strong>{fmtMoney(selected.valor_liquido)}</strong></div>
+                <div className="queue-detail-row"><span>IRRF</span><strong>{fmtMoney(selected.irrf)}</strong></div>
+                <div className="queue-detail-row"><span>INSS</span><strong>{fmtMoney(selected.inss)}</strong></div>
+                <div className="queue-detail-row"><span>ISS</span><strong>{fmtMoney(selected.iss)}</strong></div>
+                <div className="queue-detail-row"><span>Atualização</span><strong>{fmtDate(selected.updated_at || selected.created_at)}</strong></div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
 function NFSePage({ baseUrl, toast }) {
   const [empresaSelecionada, setEmpresaSelecionada] = useState(null);
   const [busca, setBusca] = useState('');
@@ -2411,6 +2742,7 @@ function App() {
     dashboard:    <DashboardPage {...pageProps} />,
     execucao:     <ExecucaoPage {...pageProps} />,
     agendamentos: <AgendamentosPage {...pageProps} />,
+    fila_trabalho:<FilaDeTrabalhoPage {...pageProps} />,
     processos:    <ProcessosPage {...pageProps} />,
     nfse:         <NFSePage {...pageProps} />,
     relatorio:    <RelatorioPage {...pageProps} />,
