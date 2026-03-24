@@ -45,6 +45,7 @@ from modules.notas_repo import (
     listar_notas_agrupadas,
     atualizar_nota_campos_editaveis,
     garantir_schema_nfse_notas,
+    backfill_comparativo_tributos,
 )
 from modules.runner_processos import run_with_process, ProcessRunConfig, RunConfig
 from modules.storage import is_s3_configured, generate_presigned_download_url, limpar_arquivos_antigos_minio
@@ -204,6 +205,12 @@ def _get_aliases_validos(login_type: LoginTypeEnum) -> set:
 def startup_event():
     garantir_schema_nfse_execucoes()
     garantir_schema_nfse_notas()
+    try:
+        atualizadas = backfill_comparativo_tributos()
+        if atualizadas:
+            print(f"[API] Backfill do comparativo de tributos atualizado em {atualizadas} nota(s).")
+    except Exception as e:
+        print(f"[API] Falha no backfill do comparativo de tributos: {e}")
 
     # Restaurar agendamentos que estavam ativos antes da última reinicialização
     def _factory(payload: dict):

@@ -704,3 +704,68 @@ def obter_resumo_processo(processo_id: str) -> Dict[str, Any]:
     resumo["principais_codigos_servico"] = []
     resumo["principais_alertas"]       = []
     return resumo
+
+
+def backfill_comparativo_tributos(limit: Optional[int] = None) -> int:
+    from .nfse_xml_converter import NFSeXMLConverter
+
+    conv = NFSeXMLConverter(tipo_nota="tomados")
+    limit_sql = ""
+    params: List[Any] = []
+    if limit is not None and limit > 0:
+        limit_sql = "LIMIT %s"
+        params.append(limit)
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, codigo_servico, valor_total, valor_bc, iss, simples_xml
+            FROM nfse_notas
+            WHERE irrf_calculado IS NULL
+               OR csrf_calculado IS NULL
+               OR iss_calculado IS NULL
+            ORDER BY id
+            {limit_sql}
+            """,
+            params,
+        ).fetchall()
+
+        atualizados = 0
+        for row in rows:
+            valor_total = float(row["valor_total"] or 0)
+            valor_bc = float(row["valor_bc"] or 0)
+            base_calculo = valor_bc if valor_bc > 0 else valor_total
+            dados = {
+                "Valor Total": valor_total,
+                "Valor B/C": valor_bc,
+                "Simples Nacional / XML": row["simples_xml"] or "",
+            }
+            comparativo = conv.aplicar_regras_retencao(dados, row["codigo_servico"]) or {}
+            categoria = conv._categoria_simples(row["simples_xml"] or "")
+
+            irrf_calculado = comparativo.get("irrf_esperado")
+            csrf_calculado = comparativo.get("csrf_esperado")
+            iss_calculado = float(row["iss"] or 0)
+
+            if categoria in ("MEI", "OPTANTE") or base_calculo == 0:
+                irrf_calculado = 0.0
+                csrf_calculado = 0.0
+
+            conn.execute(
+                """
+                UPDATE nfse_notas
+                SET irrf_calculado = %s,
+                    csrf_calculado = %s,
+                    iss_calculado = %s
+                WHERE id = %s
+                """,
+                (
+                    irrf_calculado if irrf_calculado is not None else 0.0,
+                    csrf_calculado if csrf_calculado is not None else 0.0,
+                    iss_calculado,
+                    row["id"],
+                ),
+            )
+            atualizados += 1
+
+    return atualizados
