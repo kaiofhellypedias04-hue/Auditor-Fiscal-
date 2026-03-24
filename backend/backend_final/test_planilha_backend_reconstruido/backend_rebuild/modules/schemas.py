@@ -88,6 +88,36 @@ class NotaReportFilters(BaseModel):
     somente_divergentes: bool = False
 
 
+class RegraAtribuicaoCreate(BaseModel):
+    campo: str
+    operador: str
+    valor: str
+    responsavel: str
+    prioridade: int = 100
+    ativo: bool = True
+
+
+class RegraAtribuicaoUpdate(BaseModel):
+    campo: str
+    operador: str
+    valor: str
+    responsavel: str
+    prioridade: int = 100
+    ativo: bool = True
+
+
+class RegraAtribuicaoResponse(BaseModel):
+    id: int
+    campo: str
+    operador: str
+    valor: str
+    responsavel: str
+    prioridade: int
+    ativo: bool
+    created_at: datetime
+    updated_at: datetime
+
+
 class NotaReportRow(BaseModel):
     processo_id: Optional[str] = None
     certificado: Optional[str] = None

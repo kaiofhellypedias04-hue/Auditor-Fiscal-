@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Any, Dict, List, Optional, Tuple
 
 from psycopg.types.json import Jsonb
@@ -114,6 +115,21 @@ def garantir_schema_nfse_notas():
         )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nfse_processo_notas_nota ON nfse_processo_notas (nota_id)")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS nfse_regras_atribuicao (
+          id BIGSERIAL PRIMARY KEY,
+          campo TEXT NOT NULL,
+          operador TEXT NOT NULL,
+          valor TEXT NOT NULL,
+          responsavel TEXT NOT NULL,
+          prioridade INTEGER NOT NULL DEFAULT 100,
+          ativo BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TIMESTAMP NOT NULL DEFAULT now(),
+          updated_at TIMESTAMP NOT NULL DEFAULT now()
+        )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_nfse_regras_atribuicao_ativo ON nfse_regras_atribuicao (ativo)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_nfse_regras_atribuicao_prioridade ON nfse_regras_atribuicao (prioridade)")
 
 
 def _to_text_alertas(value: Any) -> Optional[str]:
@@ -142,6 +158,137 @@ def _clean_text(value: Any) -> Optional[str]:
         return None
     txt = str(value).strip()
     return txt or None
+
+
+def _normalize_rule_text(value: Any) -> str:
+    txt = str(value or "").strip().lower()
+    txt = unicodedata.normalize("NFD", txt)
+    txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+    return txt
+
+
+def _extract_rule_field_value(campo: str, cert_alias: str, data: dict) -> str:
+    mapping = {
+        "descricao_servico": data.get("Descrição do Serviço") or data.get("descricao_servico") or "",
+        "item_nfse": data.get("Descrição do Serviço") or data.get("descricao_servico") or "",
+        "razao_social": data.get("Razão Social") or data.get("razao_social") or "",
+        "fornecedor": data.get("Razão Social") or data.get("razao_social") or "",
+        "parte_exibicao_nome": data.get("Razão Social") or data.get("razao_social") or "",
+        "cert_alias": cert_alias or "",
+        "codigo_servico": data.get("Código de serviço") or data.get("codigo_servico") or "",
+    }
+    return str(mapping.get(campo, "") or "")
+
+
+def _rule_matches(campo_valor: str, operador: str, valor: str) -> bool:
+    source = _normalize_rule_text(campo_valor)
+    target = _normalize_rule_text(valor)
+    if not target:
+        return False
+    if operador == "equals":
+        return source == target
+    if operador == "starts_with":
+        return source.startswith(target)
+    return target in source
+
+
+def listar_regras_atribuicao() -> List[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, campo, operador, valor, responsavel, prioridade, ativo, created_at, updated_at
+            FROM nfse_regras_atribuicao
+            ORDER BY prioridade ASC, id ASC
+            """
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _listar_regras_ativas() -> List[dict]:
+    return [r for r in listar_regras_atribuicao() if r.get("ativo")]
+
+
+def criar_regra_atribuicao(campo: str, operador: str, valor: str, responsavel: str, prioridade: int = 100, ativo: bool = True) -> dict:
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO nfse_regras_atribuicao (campo, operador, valor, responsavel, prioridade, ativo, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, now())
+            RETURNING id, campo, operador, valor, responsavel, prioridade, ativo, created_at, updated_at
+            """,
+            (_clean_text(campo), _clean_text(operador), _clean_text(valor), _clean_text(responsavel), prioridade, bool(ativo)),
+        ).fetchone()
+    return dict(row)
+
+
+def atualizar_regra_atribuicao(regra_id: int, campo: str, operador: str, valor: str, responsavel: str, prioridade: int, ativo: bool) -> Optional[dict]:
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            UPDATE nfse_regras_atribuicao
+            SET campo = %s,
+                operador = %s,
+                valor = %s,
+                responsavel = %s,
+                prioridade = %s,
+                ativo = %s,
+                updated_at = now()
+            WHERE id = %s
+            RETURNING id, campo, operador, valor, responsavel, prioridade, ativo, created_at, updated_at
+            """,
+            (_clean_text(campo), _clean_text(operador), _clean_text(valor), _clean_text(responsavel), prioridade, bool(ativo), regra_id),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def excluir_regra_atribuicao(regra_id: int) -> bool:
+    with get_conn() as conn:
+        row = conn.execute("DELETE FROM nfse_regras_atribuicao WHERE id = %s RETURNING id", (regra_id,)).fetchone()
+    return bool(row)
+
+
+def resolver_responsavel_automatico(cert_alias: str, data: dict) -> Optional[str]:
+    regras = _listar_regras_ativas()
+    for regra in regras:
+        campo = str(regra.get("campo") or "")
+        operador = str(regra.get("operador") or "contains")
+        valor = str(regra.get("valor") or "")
+        campo_valor = _extract_rule_field_value(campo, cert_alias, data)
+        if _rule_matches(campo_valor, operador, valor):
+            return _clean_text(regra.get("responsavel"))
+    return None
+
+
+def reaplicar_regras_atribuicao(only_empty: bool = True) -> int:
+    regras = _listar_regras_ativas()
+    if not regras:
+        return 0
+
+    with get_conn() as conn:
+        sql = """
+            SELECT id, cert_alias, responsavel, dados_completos
+            FROM nfse_notas
+        """
+        if only_empty:
+            sql += " WHERE COALESCE(TRIM(responsavel), '') = ''"
+        rows = conn.execute(sql).fetchall()
+
+        atualizados = 0
+        for row in rows:
+            data = row["dados_completos"] or {}
+            novo_responsavel = None
+            for regra in regras:
+                campo_valor = _extract_rule_field_value(str(regra.get("campo") or ""), str(row["cert_alias"] or ""), data)
+                if _rule_matches(campo_valor, str(regra.get("operador") or "contains"), str(regra.get("valor") or "")):
+                    novo_responsavel = _clean_text(regra.get("responsavel"))
+                    break
+            if novo_responsavel:
+                conn.execute(
+                    "UPDATE nfse_notas SET responsavel = %s, updated_at = now() WHERE id = %s",
+                    (novo_responsavel, row["id"]),
+                )
+                atualizados += 1
+    return atualizados
 
 
 def _extract_row_id(row: Any) -> Optional[int]:
@@ -313,6 +460,7 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
     irrf_calculado       = _to_decimal(data.get("_IRRF_Calculado"))
     csrf_calculado       = _to_decimal(data.get("_CSRF_Calculado"))
     iss_calculado        = _to_decimal(data.get("_ISS_Calculado"))
+    responsavel_automatico = resolver_responsavel_automatico(cert_alias, data)
 
     with get_conn() as conn:
         row = conn.execute(
@@ -330,6 +478,7 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
               status_simples_nacional, status_csrf, status_irrf, status_inss, status_base_calculo, status_valor_liquido,
               campos_ausentes_xml, alertas_fiscais,
               irrf_calculado, csrf_calculado, iss_calculado,
+              responsavel,
               dados_completos, arquivo_origem,
               updated_at
             )
@@ -345,6 +494,7 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
               %s,%s,%s,%s,%s,%s,
               %s,%s,
               %s,%s,%s,
+              %s,
               %s,%s,
               now()
             )
@@ -389,6 +539,7 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
               irrf_calculado = EXCLUDED.irrf_calculado,
               csrf_calculado = EXCLUDED.csrf_calculado,
               iss_calculado = EXCLUDED.iss_calculado,
+              responsavel = COALESCE(NULLIF(nfse_notas.responsavel, ''), EXCLUDED.responsavel),
               dados_completos = EXCLUDED.dados_completos,
               arquivo_origem = COALESCE(EXCLUDED.arquivo_origem, nfse_notas.arquivo_origem),
               updated_at = now()
@@ -411,6 +562,7 @@ def salvar_nota_nfse(cert_alias: str, processo_id: str | None, data: dict, arqui
                 status_base_calculo, status_valor_liquido,
                 campos_ausentes_xml, alertas_fiscais_txt,
                 irrf_calculado, csrf_calculado, iss_calculado,
+                responsavel_automatico,
                 Jsonb(data), arquivo_origem,
             ),
         ).fetchone()

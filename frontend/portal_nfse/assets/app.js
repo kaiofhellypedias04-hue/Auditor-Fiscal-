@@ -1746,12 +1746,24 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selected, setSelected] = useState(null);
+  const [rulesModalOpen, setRulesModalOpen] = useState(false);
   const [obsInterna, setObsInterna] = useState('');
   const [statusFila, setStatusFila] = useState('pendente');
   const [prioridadeFila, setPrioridadeFila] = useState('baixa');
   const [responsavelFila, setResponsavelFila] = useState('');
   const [savingObs, setSavingObs] = useState(false);
+  const [savingRule, setSavingRule] = useState(false);
+  const [reapplyingRules, setReapplyingRules] = useState(false);
   const [smartSearch, setSmartSearch] = useState('');
+  const [ruleForm, setRuleForm] = useState({
+    id: null,
+    campo: 'descricao_servico',
+    operador: 'contains',
+    valor: '',
+    responsavel: '',
+    prioridade: 100,
+    ativo: true,
+  });
   const [filters, setFilters] = useState({
     status: '',
     empresa: '',
@@ -1771,6 +1783,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
     if (filters.data_fim) q.set('data_fim', filters.data_fim);
     return api(baseUrl, `/nfse?${q.toString()}`);
   }, [baseUrl, filters.status, filters.empresa, filters.data_tipo, filters.data_inicio, filters.data_fim]);
+  const rulesData = useAsync(() => api(baseUrl, '/fila-regras-atribuicao'), [baseUrl]);
 
   const queueItems = useMemo(() => {
     return (filaData.data?.items || []).map(mapQueueItem);
@@ -1820,6 +1833,16 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
   const alertMeta = useMemo(() => {
     return selected ? getQueueAlertMeta(selected) : null;
   }, [selected]);
+
+  const resetRuleForm = () => setRuleForm({
+    id: null,
+    campo: 'descricao_servico',
+    operador: 'contains',
+    valor: '',
+    responsavel: '',
+    prioridade: 100,
+    ativo: true,
+  });
 
   const exportQueueRows = useMemo(() => {
     return filteredItems.map(item => ({
@@ -1879,6 +1902,92 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
     }
   };
 
+  const salvarRegra = async e => {
+    e.preventDefault();
+    setSavingRule(true);
+    try {
+      const payload = {
+        campo: ruleForm.campo,
+        operador: ruleForm.operador,
+        valor: ruleForm.valor,
+        responsavel: ruleForm.responsavel,
+        prioridade: Number(ruleForm.prioridade) || 100,
+        ativo: !!ruleForm.ativo,
+      };
+      if (ruleForm.id) {
+        await api(baseUrl, `/fila-regras-atribuicao/${ruleForm.id}`, { method: 'PUT', body: payload });
+        toast('Regra atualizada com sucesso.', 'success');
+      } else {
+        await api(baseUrl, '/fila-regras-atribuicao', { method: 'POST', body: payload });
+        toast('Regra criada com sucesso.', 'success');
+      }
+      resetRuleForm();
+      rulesData.reload();
+    } catch (e2) {
+      toast(e2.message, 'error');
+    } finally {
+      setSavingRule(false);
+    }
+  };
+
+  const editarRegra = regra => {
+    setRuleForm({
+      id: regra.id,
+      campo: regra.campo,
+      operador: regra.operador,
+      valor: regra.valor,
+      responsavel: regra.responsavel,
+      prioridade: regra.prioridade,
+      ativo: !!regra.ativo,
+    });
+    setRulesModalOpen(true);
+  };
+
+  const alternarRegra = async regra => {
+    try {
+      await api(baseUrl, `/fila-regras-atribuicao/${regra.id}`, {
+        method: 'PUT',
+        body: {
+          campo: regra.campo,
+          operador: regra.operador,
+          valor: regra.valor,
+          responsavel: regra.responsavel,
+          prioridade: regra.prioridade,
+          ativo: !regra.ativo,
+        },
+      });
+      toast(`Regra ${!regra.ativo ? 'ativada' : 'desativada'} com sucesso.`, 'success');
+      rulesData.reload();
+    } catch (e2) {
+      toast(e2.message, 'error');
+    }
+  };
+
+  const excluirRegra = async regra => {
+    if (!window.confirm(`Excluir a regra "${regra.valor}"?`)) return;
+    try {
+      await api(baseUrl, `/fila-regras-atribuicao/${regra.id}`, { method: 'DELETE' });
+      if (ruleForm.id === regra.id) resetRuleForm();
+      toast('Regra excluída com sucesso.', 'success');
+      rulesData.reload();
+    } catch (e2) {
+      toast(e2.message, 'error');
+    }
+  };
+
+  const reaplicarRegras = async () => {
+    setReapplyingRules(true);
+    try {
+      const resp = await api(baseUrl, '/fila-regras-atribuicao/reaplicar?somente_sem_responsavel=true', { method: 'POST' });
+      toast(`${resp.atualizadas || 0} nota(s) atualizada(s) pelas regras.`, 'success');
+      filaData.reload();
+    } catch (e2) {
+      toast(e2.message, 'error');
+    } finally {
+      setReapplyingRules(false);
+    }
+  };
+
   return (
     <div className="page-enter">
       <SectionHeader
@@ -1886,6 +1995,12 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
         sub="Visão operacional das notas em análise no portal"
         actions={
           <>
+            <button className="btn btn-ghost btn-sm" onClick={() => setRulesModalOpen(true)}>
+              <IconSettings /> Regras
+            </button>
+            <button className="btn btn-ghost btn-sm" disabled={reapplyingRules} onClick={reaplicarRegras}>
+              {reapplyingRules ? <Spinner size={12} /> : <><IconRefresh /> Reaplicar regras</>}
+            </button>
             <button
               className="btn btn-ghost btn-sm"
               disabled={!filteredItems.length}
@@ -2073,6 +2188,106 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
           onSize={s => { setPageSize(s); setPage(1); }}
         />
       </div>
+
+      <Modal open={rulesModalOpen} title="Regras de atribuição automática" onClose={() => { setRulesModalOpen(false); resetRuleForm(); }} wide>
+        <div className="queue-detail">
+          <Alert type="info">
+            Use regras simples para preencher o responsável automaticamente. Regra manual na nota continua prevalecendo. Exemplos:
+            <strong> descrição do serviço contém "COMISSÃO" → Yasmin</strong> ou <strong>fornecedor contém "Planning" → Rejane</strong>.
+          </Alert>
+
+          <div className="queue-detail-grid">
+            <div className="queue-detail-block">
+              <div className="card-title" style={{ marginBottom: 12 }}>{ruleForm.id ? 'Editar regra' : 'Nova regra'}</div>
+              <form onSubmit={salvarRegra}>
+                <div className="form-grid form-cols-2">
+                  <div className="field">
+                    <label className="label">Campo</label>
+                    <select className="select" value={ruleForm.campo} onChange={e => setRuleForm(f => ({ ...f, campo: e.target.value }))}>
+                      <option value="descricao_servico">Descrição do serviço</option>
+                      <option value="fornecedor">Fornecedor</option>
+                      <option value="cert_alias">Empresa/alias</option>
+                      <option value="codigo_servico">Código do serviço</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="label">Operador</label>
+                    <select className="select" value={ruleForm.operador} onChange={e => setRuleForm(f => ({ ...f, operador: e.target.value }))}>
+                      <option value="contains">Contém</option>
+                      <option value="equals">Igual a</option>
+                      <option value="starts_with">Começa com</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="label">Valor da regra</label>
+                    <input className="input" value={ruleForm.valor} onChange={e => setRuleForm(f => ({ ...f, valor: e.target.value }))} placeholder="Ex.: COMISSÃO, CORRETAGEM, Planning" required />
+                  </div>
+                  <div className="field">
+                    <label className="label">Responsável</label>
+                    <input className="input" value={ruleForm.responsavel} onChange={e => setRuleForm(f => ({ ...f, responsavel: e.target.value }))} placeholder="Ex.: Yasmin" required />
+                  </div>
+                  <div className="field">
+                    <label className="label">Prioridade</label>
+                    <input className="input" type="number" min="1" value={ruleForm.prioridade} onChange={e => setRuleForm(f => ({ ...f, prioridade: e.target.value }))} />
+                  </div>
+                  <div className="field" style={{ display: 'flex', alignItems: 'end' }}>
+                    <label className="checkbox-inline">
+                      <input type="checkbox" checked={!!ruleForm.ativo} onChange={e => setRuleForm(f => ({ ...f, ativo: e.target.checked }))} />
+                      <span>Regra ativa</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="queue-detail-actions">
+                  {ruleForm.id ? <button type="button" className="btn btn-ghost btn-sm" onClick={resetRuleForm}>Cancelar edição</button> : null}
+                  <button className="btn btn-primary btn-sm" disabled={savingRule}>
+                    {savingRule ? <Spinner size={13} /> : ruleForm.id ? 'Atualizar regra' : 'Salvar regra'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="queue-detail-block">
+              <div className="card-title" style={{ marginBottom: 12 }}>Regras cadastradas</div>
+              {rulesData.loading ? <Loading label="Carregando regras..." /> : rulesData.error ? <Alert type="error">{rulesData.error}</Alert> : (
+                <div className="table-wrap scrollable" style={{ border: 'none', borderRadius: 0 }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Campo</th>
+                        <th>Operador</th>
+                        <th>Valor</th>
+                        <th>Responsável</th>
+                        <th>Prioridade</th>
+                        <th>Status</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {!(rulesData.data || []).length ? (
+                        <Empty msg="Nenhuma regra cadastrada." />
+                      ) : (rulesData.data || []).map(regra => (
+                        <tr key={regra.id}>
+                          <td>{regra.campo}</td>
+                          <td>{regra.operador}</td>
+                          <td>{regra.valor}</td>
+                          <td>{regra.responsavel}</td>
+                          <td className="mono">{regra.prioridade}</td>
+                          <td><Badge tone={regra.ativo ? 'success' : 'neutral'}>{regra.ativo ? 'Ativa' : 'Inativa'}</Badge></td>
+                          <td className="actions">
+                            <button className="btn btn-ghost btn-xs" onClick={() => editarRegra(regra)}><IconEdit /></button>
+                            <button className="btn btn-ghost btn-xs" onClick={() => alternarRegra(regra)}>{regra.ativo ? 'Desativar' : 'Ativar'}</button>
+                            <button className="btn btn-danger btn-xs" onClick={() => excluirRegra(regra)}><IconTrash /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={!!selected} title={selected ? `Analisar nota — ${selected.queue_numero_nota}` : 'Analisar nota'} onClose={() => setSelected(null)} wide>
         {!selected ? null : (

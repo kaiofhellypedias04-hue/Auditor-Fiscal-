@@ -46,6 +46,11 @@ from modules.notas_repo import (
     atualizar_nota_campos_editaveis,
     garantir_schema_nfse_notas,
     backfill_comparativo_tributos,
+    listar_regras_atribuicao,
+    criar_regra_atribuicao,
+    atualizar_regra_atribuicao,
+    excluir_regra_atribuicao,
+    reaplicar_regras_atribuicao,
 )
 from modules.runner_processos import run_with_process, ProcessRunConfig, RunConfig
 from modules.storage import is_s3_configured, generate_presigned_download_url, limpar_arquivos_antigos_minio
@@ -53,6 +58,7 @@ from modules.schemas import (
     StatusEnum, LoginTypeEnum, TipoNotaEnum, Pagination,
     ProcessoResponse, ArquivoResponse, NotaReportFilters,
     NotaReportRow, SummaryResponse, ProcessoCreate,
+    RegraAtribuicaoCreate, RegraAtribuicaoUpdate, RegraAtribuicaoResponse,
 )
 from modules.reports import gerar_relatorio_processo
 from modules.db import get_conn
@@ -688,6 +694,53 @@ def get_nfse(
     }
     items, total = listar_notas_agrupadas(filters, page=page, page_size=page_size)
     return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@app.get("/fila-regras-atribuicao", response_model=list[RegraAtribuicaoResponse])
+def get_fila_regras_atribuicao():
+    return listar_regras_atribuicao()
+
+
+@app.post("/fila-regras-atribuicao", response_model=RegraAtribuicaoResponse)
+def post_fila_regra_atribuicao(data: RegraAtribuicaoCreate):
+    return criar_regra_atribuicao(
+        campo=data.campo,
+        operador=data.operador,
+        valor=data.valor,
+        responsavel=data.responsavel,
+        prioridade=data.prioridade,
+        ativo=data.ativo,
+    )
+
+
+@app.put("/fila-regras-atribuicao/{regra_id}", response_model=RegraAtribuicaoResponse)
+def put_fila_regra_atribuicao(regra_id: int, data: RegraAtribuicaoUpdate):
+    row = atualizar_regra_atribuicao(
+        regra_id=regra_id,
+        campo=data.campo,
+        operador=data.operador,
+        valor=data.valor,
+        responsavel=data.responsavel,
+        prioridade=data.prioridade,
+        ativo=data.ativo,
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Regra {regra_id} não encontrada")
+    return row
+
+
+@app.delete("/fila-regras-atribuicao/{regra_id}")
+def delete_fila_regra_atribuicao(regra_id: int):
+    ok = excluir_regra_atribuicao(regra_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"Regra {regra_id} não encontrada")
+    return {"success": True, "id": regra_id}
+
+
+@app.post("/fila-regras-atribuicao/reaplicar")
+def post_fila_regras_reaplicar(somente_sem_responsavel: bool = Query(True)):
+    atualizadas = reaplicar_regras_atribuicao(only_empty=somente_sem_responsavel)
+    return {"success": True, "atualizadas": atualizadas}
 
 
 @app.put("/nfse/{nota_id}")

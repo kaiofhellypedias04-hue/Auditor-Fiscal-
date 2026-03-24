@@ -1110,6 +1110,15 @@ tbody td.actions { white-space: nowrap; }
   display: flex;
   justify-content: flex-end;
   margin-top: 12px;
+  gap: 8px;
+}
+
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 13px;
 }
 
 .queue-compare-table table td,
