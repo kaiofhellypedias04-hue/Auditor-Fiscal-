@@ -660,7 +660,13 @@ def listar_notas_agrupadas(filters: Optional[dict] = None, page: int = 1, page_s
                    n.created_at,
                    n.updated_at
             FROM nfse_notas n
-            LEFT JOIN nfse_processo_notas ppn ON ppn.nota_id = n.id
+            LEFT JOIN LATERAL (
+                SELECT ppn.processo_id
+                FROM nfse_processo_notas ppn
+                WHERE ppn.nota_id = n.id
+                ORDER BY ppn.created_at DESC, ppn.processo_id DESC
+                LIMIT 1
+            ) ppn ON TRUE
             LEFT JOIN nfse_processos p ON p.id = COALESCE(ppn.processo_id, n.processo_id)
             {where}
             ORDER BY n.updated_at DESC, n.created_at DESC
