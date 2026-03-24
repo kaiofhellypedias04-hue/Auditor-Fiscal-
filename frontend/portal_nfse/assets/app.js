@@ -146,6 +146,15 @@ function hasQueueAlert(row) {
   return true;
 }
 
+function getQueueAlertMeta(row) {
+  const text = String(row.alertas_fiscais || '').trim();
+  if (!text) return null;
+  if (hasQueueAlert(row)) {
+    return { type: 'error', title: 'Alertas fiscais', text };
+  }
+  return { type: 'info', title: 'Observacao fiscal', text };
+}
+
 function mapQueueItem(row) {
   const statusFila = row.status_fila || row.status_fila_manual || row.status;
   const prioridade = queuePriorityFromRow(row);
@@ -1731,6 +1740,10 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
     return selected ? buildQueueTributosComparativo(selected) : [];
   }, [selected]);
 
+  const alertMeta = useMemo(() => {
+    return selected ? getQueueAlertMeta(selected) : null;
+  }, [selected]);
+
   const salvarObservacao = async () => {
     if (!selected) return;
     setSavingObs(true);
@@ -1947,9 +1960,9 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
               </Alert>
             )}
 
-            {!!selected.alertas_fiscais && (
-              <Alert type="error">
-                <strong>Alertas fiscais:</strong> {selected.alertas_fiscais}
+            {!!alertMeta && (
+              <Alert type={alertMeta.type}>
+                <strong>{alertMeta.title}:</strong> {alertMeta.text}
               </Alert>
             )}
 
