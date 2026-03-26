@@ -81,6 +81,17 @@ function fmtCompetenciaFromDate(v) {
 
 function today() { return new Date().toISOString().slice(0, 10); }
 
+function isoDateLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function daysAgo(days) {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() - days);
+  return isoDateLocal(d);
+}
+
 function clientName(alias) {
   if (!alias) return 'Cliente';
   if (alias.includes(' - ')) return alias.split(' - ').slice(1).join(' - ').trim();
@@ -525,8 +536,8 @@ function QueueSlaBadge({ sla }) {
   return <span className={cn('sla-pill', `sla-pill-${sla?.tone || 'neutral'}`)}>{sla?.label || 'Sem prazo'}</span>;
 }
 
-function FilterBar({ children, label = 'Filtros' }) {
-  const [open, setOpen] = useState(true);
+function FilterBar({ children, label = 'Filtros', defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="filter-bar">
       <div className="filter-bar-head" onClick={() => setOpen(o => !o)}>
@@ -1743,6 +1754,7 @@ function ProcessosPage({ baseUrl, toast }) {
 // Nível 2: ao clicar na empresa, mostra todas as notas dela
 
 function FilaDeTrabalhoPage({ baseUrl, toast }) {
+  const yesterday = useMemo(() => daysAgo(1), []);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selected, setSelected] = useState(null);
@@ -1770,8 +1782,8 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
     prioridade: '',
     responsavel: '',
     data_tipo: 'entrada',
-    data_inicio: '',
-    data_fim: '',
+    data_inicio: yesterday,
+    data_fim: yesterday,
   });
 
   const filaData = useAsync(() => {
@@ -2044,7 +2056,7 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
           </div>
         </div>
 
-        <FilterBar label="Filtros da fila">
+        <FilterBar label="Filtros da fila" defaultOpen={false}>
           <div className="form-grid form-cols-4" style={{ marginTop: 16 }} onClick={e => e.stopPropagation()}>
             <div className="field">
               <label className="label">Status</label>
@@ -2105,6 +2117,24 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                 onChange={e => { setPage(1); setSmartSearch(e.target.value); }}
                 placeholder="Busque em todas as colunas ou use competencia:, empresa:, status:, prioridade:, responsavel:, nota:, prestador:, valor:, entrada:, sla:"
               />
+            </div>
+            <div className="field">
+              <label className="label">Atalho</label>
+              <button
+                className="btn btn-ghost btn-sm queue-filter-shortcut"
+                type="button"
+                onClick={() => {
+                  setPage(1);
+                  setFilters(prev => ({
+                    ...prev,
+                    data_tipo: 'entrada',
+                    data_inicio: yesterday,
+                    data_fim: yesterday,
+                  }));
+                }}
+              >
+                Voltar para ontem
+              </button>
             </div>
           </div>
         </FilterBar>
@@ -3302,11 +3332,12 @@ function App() {
   };
 
   const currentMenu = MENU.find(m => m.key === active);
+  const queueFocus = active === 'fila_trabalho';
 
   return (
-    <div className="app-shell">
+    <div className={cn('app-shell', queueFocus && 'queue-focus-shell')}>
       {/* Desktop sidebar */}
-      <aside className="sidebar">
+      <aside className={cn('sidebar', queueFocus && 'queue-focus-hidden')}>
         <SidebarContent />
       </aside>
 
@@ -3335,6 +3366,11 @@ function App() {
 
         {/* Desktop topbar */}
         <div className="topbar">
+          {queueFocus && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setMobileOpen(true)}>
+              Menu
+            </button>
+          )}
           <span className="topbar-title">{currentMenu?.label}</span>
           <span className="topbar-sep">/</span>
           <span className="topbar-sub">Portal de Auditoria Fiscal</span>
@@ -3346,7 +3382,7 @@ function App() {
           </div>
         </div>
 
-        <div className="page-content">
+        <div className={cn('page-content', queueFocus && 'queue-focus-content')}>
           {pages[active] || <div />}
         </div>
       </div>

@@ -257,6 +257,15 @@ body {
   margin: 0 auto;
 }
 
+.queue-focus-hidden {
+  display: none;
+}
+
+.queue-focus-content {
+  max-width: none;
+  padding: 20px 24px 24px;
+}
+
 /* ── Cards ─────────────────────────────────────────────────── */
 .card {
   background: var(--surface);
@@ -1032,13 +1041,97 @@ tbody td.actions { white-space: nowrap; }
   gap: 12px;
 }
 
+.queue-grid > .card:first-child {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.queue-grid > .card:first-child .card-body.queue-toolbar {
+  padding: 0;
+}
+
+.queue-grid > .card:first-child .empresa-card-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 46px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  text-align: left;
+}
+
+.queue-grid > .card:first-child .empresa-card-metric .stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-3);
+}
+
+.queue-grid > .card:first-child .empresa-card-metric .stat-value {
+  font-family: var(--font-mono);
+}
+
+.queue-toolbar-compact {
+  grid-template-columns: repeat(3, minmax(180px, 220px));
+  justify-content: start;
+  align-items: center;
+}
+
+.queue-inline-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 46px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+}
+
+.queue-inline-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-3);
+}
+
+.queue-inline-metric strong {
+  font-size: 20px;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
 .queue-search-field {
   grid-column: 1 / -1;
+}
+
+.queue-filter-shortcut {
+  width: 100%;
+  justify-content: center;
 }
 
 .queue-table table td,
 .queue-table table th {
   white-space: nowrap;
+}
+
+.queue-table table th {
+  font-size: 10px;
+  padding: 11px 10px;
+}
+
+.queue-table table td {
+  padding: 11px 10px;
+  font-size: 12px;
+}
+
+.queue-focus-content .queue-table.table-wrap.scrollable {
+  max-height: calc(100vh - 260px);
 }
 
 .queue-table tbody tr {
@@ -1164,5 +1257,9 @@ tbody td.actions { white-space: nowrap; }
   .queue-toolbar,
   .queue-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .queue-focus-content {
+    padding: 20px 16px;
   }
 }
