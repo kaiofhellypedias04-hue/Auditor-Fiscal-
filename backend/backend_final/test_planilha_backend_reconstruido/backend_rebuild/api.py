@@ -1,15 +1,15 @@
-"""
-API Auditoria NFS-e — v2.2.0
+﻿"""
+API Auditoria NFS-e â€” v2.2.0
 
-Novidades em relação à v2.1.0:
-  - base_dir removido do ExecRequest — o servidor define o diretório de saída
-    automaticamente em DATA_DIR/{alias} (configurável via env DATA_DIR)
-  - Nova rota GET /processos/{id}/download-zip — empacota todos os arquivos
+Novidades em relaÃ§Ã£o Ã  v2.1.0:
+  - base_dir removido do ExecRequest â€” o servidor define o diretÃ³rio de saÃ­da
+    automaticamente em DATA_DIR/{alias} (configurÃ¡vel via env DATA_DIR)
+  - Nova rota GET /processos/{id}/download-zip â€” empacota todos os arquivos
     (PDFs, XMLs, planilha) de um processo em um .zip e retorna para download
-  - Nova rota GET /processos/{id}/relatorio-csv — exporta o relatório completo
+  - Nova rota GET /processos/{id}/relatorio-csv â€” exporta o relatÃ³rio completo
     do processo em CSV com todos os campos de auditoria, pronto para Excel
-  - CORS aberto para qualquer origem por padrão (ajuste CORS_ORIGINS no .env
-    para restringir em produção)
+  - CORS aberto para qualquer origem por padrÃ£o (ajuste CORS_ORIGINS no .env
+    para restringir em produÃ§Ã£o)
 """
 
 import io
@@ -51,6 +51,7 @@ from modules.notas_repo import (
     atualizar_regra_atribuicao,
     excluir_regra_atribuicao,
     reaplicar_regras_atribuicao,
+    localizar_documentos_nota,
 )
 from modules.runner_processos import run_with_process, ProcessRunConfig, RunConfig
 from modules.storage import is_s3_configured, generate_presigned_download_url, limpar_arquivos_antigos_minio
@@ -58,6 +59,7 @@ from modules.schemas import (
     StatusEnum, LoginTypeEnum, TipoNotaEnum, Pagination,
     ProcessoResponse, ArquivoResponse, NotaReportFilters,
     NotaReportRow, SummaryResponse, ProcessoCreate,
+    NotaDocumentosResponse, NotaDocumentoItem,
     RegraAtribuicaoCreate, RegraAtribuicaoUpdate, RegraAtribuicaoResponse,
 )
 from modules.reports import gerar_relatorio_processo
@@ -76,11 +78,11 @@ from modules.cert_manager import (
 )
 
 
-# ─── App e CORS ───────────────────────────────────────────────────────────────
+# â”€â”€â”€ App e CORS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 app = FastAPI(title="API Auditoria NFS-e", version="2.2.0")
 
-# Origens permitidas: * por padrão; restrinja via CORS_ORIGINS no .env em produção
+# Origens permitidas: * por padrÃ£o; restrinja via CORS_ORIGINS no .env em produÃ§Ã£o
 # Ex: CORS_ORIGINS=https://meuportal.com,https://outro.com
 _extra_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
 _allowed_origins = _extra_origins if _extra_origins else ["*"]
@@ -88,14 +90,14 @@ _allowed_origins = _extra_origins if _extra_origins else ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_origin_regex=r".*",  # permite qualquer origem quando * não basta
+    allow_origin_regex=r".*",  # permite qualquer origem quando * nÃ£o basta
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ─── Schemas de request ───────────────────────────────────────────────────────
+# â”€â”€â”€ Schemas de request â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class ExecRequest(BaseModel):
     cert_aliases: List[str] = Field(..., description="Lista de aliases dos certificados ou credenciais")
@@ -108,7 +110,7 @@ class ExecRequest(BaseModel):
     tipo_nota: TipoNotaEnum = TipoNotaEnum.tomados
     hora_execucao: str = Field(
         "06:00",
-        description="Horário diário de execução no formato HH:MM (usado apenas no modo agendado)",
+        description="HorÃ¡rio diÃ¡rio de execuÃ§Ã£o no formato HH:MM (usado apenas no modo agendado)",
         pattern=r"^\d{2}:\d{2}$",
     )
 
@@ -142,12 +144,12 @@ class NotaEditRequest(BaseModel):
     responsavel: Optional[str] = None
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 projeto_root = Path(__file__).parent
 
-# Diretório base de saída no servidor — configurável via env DATA_DIR
-# Padrão: pasta "saida" dentro do projeto
+# DiretÃ³rio base de saÃ­da no servidor â€” configurÃ¡vel via env DATA_DIR
+# PadrÃ£o: pasta "saida" dentro do projeto
 def _get_data_dir(cert_alias: str = "") -> str:
     base = os.getenv("DATA_DIR", str(projeto_root / "saida"))
     if cert_alias:
@@ -190,13 +192,13 @@ def _alias_to_client_id(alias: str) -> str:
 
 
 def _ultimos_30_dias() -> tuple[date, date]:
-    """Retorna (hoje - 29 dias, hoje) — últimos 30 dias corridos."""
+    """Retorna (hoje - 29 dias, hoje) â€” Ãºltimos 30 dias corridos."""
     hoje = date.today()
     return hoje - timedelta(days=29), hoje
 
 
 def _get_aliases_validos(login_type: LoginTypeEnum) -> set:
-    """Retorna o conjunto de aliases válidos conforme o tipo de login."""
+    """Retorna o conjunto de aliases vÃ¡lidos conforme o tipo de login."""
     if login_type == LoginTypeEnum.cpf_cnpj:
         creds = carregar_credenciais(str(projeto_root / "credentials.json"))
         return {c.get("alias") for c in creds if c.get("alias")}
@@ -205,7 +207,7 @@ def _get_aliases_validos(login_type: LoginTypeEnum) -> set:
         return {c.get("alias") for c in certs if c.get("alias")}
 
 
-# ─── Startup ──────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Startup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.on_event("startup")
 def startup_event():
@@ -218,9 +220,9 @@ def startup_event():
     except Exception as e:
         print(f"[API] Falha no backfill do comparativo de tributos: {e}")
 
-    # Restaurar agendamentos que estavam ativos antes da última reinicialização
+    # Restaurar agendamentos que estavam ativos antes da Ãºltima reinicializaÃ§Ã£o
     def _factory(payload: dict):
-        """Reconstrói a função de execução a partir do payload salvo."""
+        """ReconstrÃ³i a funÃ§Ã£o de execuÃ§Ã£o a partir do payload salvo."""
         try:
             # Compatibilidade: payload antigo pode ter base_dir, ignoramos
             payload_clean = {k: v for k, v in payload.items() if k != 'base_dir'}
@@ -259,27 +261,27 @@ def startup_event():
     if restaurados:
         print(f"[API] {restaurados} agendamento(s) restaurado(s) do banco.")
 
-    # Agendar limpeza diária do MinIO (executa a cada 24h)
+    # Agendar limpeza diÃ¡ria do MinIO (executa a cada 24h)
     def _limpar_minio():
         resultado = limpar_arquivos_antigos_minio(dias=15)
-        print(f"[MinIO] Limpeza diária: {resultado['removidos']} arquivo(s) removido(s)")
+        print(f"[MinIO] Limpeza diÃ¡ria: {resultado['removidos']} arquivo(s) removido(s)")
 
     iniciar_agendamento(
         job_id="__minio_cleanup__",
         func=_limpar_minio,
         intervalo_segundos=86400,
-        descricao="Limpeza automática MinIO (15 dias)",
+        descricao="Limpeza automÃ¡tica MinIO (15 dias)",
     )
 
 
-# ─── Health ───────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/health")
 def health():
     return {"status": "ok", "version": "2.1.0", "timestamp": datetime.now().isoformat()}
 
 
-# ─── Certificados ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ Certificados â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/certificados")
 def listar_certificados():
@@ -351,14 +353,14 @@ def redefinir_senha_cert(alias: str, data: SenhaUpdate):
 def deletar_certificado(alias: str):
     try:
         excluir_certificado(alias)
-        return {"success": True, "message": f"Certificado '{alias}' excluído com sucesso."}
+        return {"success": True, "message": f"Certificado '{alias}' excluÃ­do com sucesso."}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# ─── Credenciais ──────────────────────────────────────────────────────────────
+# â”€â”€â”€ Credenciais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/credenciais")
 def listar_credenciais():
@@ -385,7 +387,7 @@ def criar_credencial(data: CredencialCreate):
     if not validar_cpf_cnpj(data.cpf_cnpj):
         raise HTTPException(
             status_code=422,
-            detail=f"CPF/CNPJ inválido: '{data.cpf_cnpj}'. Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido."
+            detail=f"CPF/CNPJ invÃ¡lido: '{data.cpf_cnpj}'. Informe um CPF (11 dÃ­gitos) ou CNPJ (14 dÃ­gitos) vÃ¡lido."
         )
     try:
         cred = adicionar_credencial(
@@ -430,24 +432,24 @@ def redefinir_senha_cred(alias: str, data: SenhaUpdate):
 def deletar_credencial(alias: str):
     try:
         excluir_credencial(alias)
-        return {"success": True, "message": f"Credencial '{alias}' excluída com sucesso."}
+        return {"success": True, "message": f"Credencial '{alias}' excluÃ­da com sucesso."}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# ─── Execução ─────────────────────────────────────────────────────────────────
+# â”€â”€â”€ ExecuÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.post("/executar")
 def executar(req: ExecRequest):
     if req.start > req.end:
-        raise HTTPException(status_code=400, detail="'start' não pode ser maior que 'end'")
+        raise HTTPException(status_code=400, detail="'start' nÃ£o pode ser maior que 'end'")
 
     aliases_validos = _get_aliases_validos(req.login_type)
     invalidos = [a for a in req.cert_aliases if a not in aliases_validos]
     if invalidos:
-        raise HTTPException(status_code=400, detail=f"Aliases inválidos: {', '.join(invalidos)}")
+        raise HTTPException(status_code=400, detail=f"Aliases invÃ¡lidos: {', '.join(invalidos)}")
 
     job_id = str(uuid.uuid4())
     processos = []
@@ -478,17 +480,17 @@ def executar(req: ExecRequest):
 @app.post("/agendar")
 def agendar_execucao(req: ExecRequest):
     """
-    Ativa o modo automático diário.
+    Ativa o modo automÃ¡tico diÃ¡rio.
 
-    - O campo `hora_execucao` (HH:MM) define o horário exato de disparo todo dia.
-    - Se o horário já passou hoje, a primeira execução será amanhã nesse horário.
-    - Se o horário ainda não chegou hoje, a primeira execução será hoje.
-    - A cada execução o período é calculado como os últimos 30 dias corridos.
+    - O campo `hora_execucao` (HH:MM) define o horÃ¡rio exato de disparo todo dia.
+    - Se o horÃ¡rio jÃ¡ passou hoje, a primeira execuÃ§Ã£o serÃ¡ amanhÃ£ nesse horÃ¡rio.
+    - Se o horÃ¡rio ainda nÃ£o chegou hoje, a primeira execuÃ§Ã£o serÃ¡ hoje.
+    - A cada execuÃ§Ã£o o perÃ­odo Ã© calculado como os Ãºltimos 30 dias corridos.
     """
     aliases_validos = _get_aliases_validos(req.login_type)
     invalidos = [a for a in req.cert_aliases if a not in aliases_validos]
     if invalidos:
-        raise HTTPException(status_code=400, detail=f"Aliases inválidos: {', '.join(invalidos)}")
+        raise HTTPException(status_code=400, detail=f"Aliases invÃ¡lidos: {', '.join(invalidos)}")
 
     # Validar formato hora_execucao
     try:
@@ -497,17 +499,17 @@ def agendar_execucao(req: ExecRequest):
         if not (0 <= hora_h <= 23 and 0 <= hora_m <= 59):
             raise ValueError()
     except Exception:
-        raise HTTPException(status_code=400, detail=f"hora_execucao inválido: '{req.hora_execucao}'. Use o formato HH:MM (ex: 06:00)")
+        raise HTTPException(status_code=400, detail=f"hora_execucao invÃ¡lido: '{req.hora_execucao}'. Use o formato HH:MM (ex: 06:00)")
 
     job_id = str(uuid.uuid4())
     payload = req.model_dump(mode="json")
 
     def _segundos_ate_proximo_horario() -> float:
-        """Calcula quantos segundos faltam para o próximo disparo no horário configurado."""
+        """Calcula quantos segundos faltam para o prÃ³ximo disparo no horÃ¡rio configurado."""
         agora = datetime.now()
         alvo = agora.replace(hour=hora_h, minute=hora_m, second=0, microsecond=0)
         if alvo <= agora:
-            # Horário já passou hoje — próximo disparo é amanhã
+            # HorÃ¡rio jÃ¡ passou hoje â€” prÃ³ximo disparo Ã© amanhÃ£
             alvo += timedelta(days=1)
         return (alvo - agora).total_seconds()
 
@@ -519,9 +521,9 @@ def agendar_execucao(req: ExecRequest):
         return alvo
 
     def executar_agendado():
-        # Aguarda até o horário configurado antes de processar
+        # Aguarda atÃ© o horÃ¡rio configurado antes de processar
         espera = _segundos_ate_proximo_horario()
-        print(f"[AGENDAMENTO {job_id}] Aguardando {int(espera)}s até {hora_str} para iniciar processamento...")
+        print(f"[AGENDAMENTO {job_id}] Aguardando {int(espera)}s atÃ© {hora_str} para iniciar processamento...")
 
         # Sleep em fatias de 30s para responder ao cancelamento rapidamente
         restante = espera
@@ -531,7 +533,7 @@ def agendar_execucao(req: ExecRequest):
 
         inicio, fim = _ultimos_30_dias()
         execution_id = str(uuid.uuid4())
-        print(f"[AGENDAMENTO {job_id}] Iniciando processamento — período: {inicio} a {fim}")
+        print(f"[AGENDAMENTO {job_id}] Iniciando processamento â€” perÃ­odo: {inicio} a {fim}")
 
         for alias in req.cert_aliases:
             proc_id = criar_processo(ProcessoCreate(
@@ -577,7 +579,7 @@ def agendar_execucao(req: ExecRequest):
         job_id=job_id,
         func=executar_agendado,
         intervalo_segundos=86400,
-        descricao=f"Automático diário {hora_str} — últimos 30 dias — {', '.join(req.cert_aliases)}",
+        descricao=f"AutomÃ¡tico diÃ¡rio {hora_str} â€” Ãºltimos 30 dias â€” {', '.join(req.cert_aliases)}",
         payload=payload,
     )
 
@@ -589,13 +591,13 @@ def agendar_execucao(req: ExecRequest):
         "tipo": "automatico_diario",
         "hora_execucao": hora_str,
         "intervalo_segundos": 86400,
-        "descricao": f"Últimos 30 dias corridos, todo dia às {hora_str}",
+        "descricao": f"Ãšltimos 30 dias corridos, todo dia Ã s {hora_str}",
         "proxima_execucao": proxima.isoformat(),
         "periodo_proximo": {"start": inicio.isoformat(), "end": fim.isoformat()},
     }
 
 
-# ─── Agendamentos ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ Agendamentos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/agendamentos")
 def listar_jobs():
@@ -608,13 +610,13 @@ def parar_job(job_id: str):
     return {"success": True}
 
 
-# ─── Status ───────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/status/{job_id}")
 def status_job(job_id: str):
     exec_data = obter_execucao(job_id)
     if not exec_data:
-        raise HTTPException(status_code=404, detail="job_id não encontrado")
+        raise HTTPException(status_code=404, detail="job_id nÃ£o encontrado")
     processos = listar_processos(execution_id=job_id, page=1, page_size=100)
     return {
         "job_id": job_id,
@@ -626,7 +628,7 @@ def status_job(job_id: str):
     }
 
 
-# ─── Execuções ────────────────────────────────────────────────────────────────
+# â”€â”€â”€ ExecuÃ§Ãµes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/execucoes", response_model=dict)
 def get_execucoes(
@@ -648,8 +650,8 @@ def get_execucoes(
         items.append({
             "id":               row["job_id"],
             "job_id":           row["job_id"],
-            "client_name":      _alias_to_client_name((aliases or ["Execução"])[0]),
-            "client_id":        _alias_to_client_id((aliases or ["Execução"])[0]),
+            "client_name":      _alias_to_client_name((aliases or ["ExecuÃ§Ã£o"])[0]),
+            "client_id":        _alias_to_client_id((aliases or ["ExecuÃ§Ã£o"])[0]),
             "aliases":          aliases,
             "login_type":       "credential" if payload.get("login_type") == "cpf_cnpj" else "certificate",
             "mode":             "automatico" if payload.get("agendado") else "manual",
@@ -663,13 +665,13 @@ def get_execucoes(
             "errors":           row.get("processos_falhos", 0),
             "total_found":      row.get("total_processos", 0),
             "total_processed":  row.get("processos_concluidos", 0),
-            "message":          row.get("error_message") or f"{row.get('processos_concluidos', 0)} de {row.get('total_processos', 0)} processos concluídos",
+            "message":          row.get("error_message") or f"{row.get('processos_concluidos', 0)} de {row.get('total_processos', 0)} processos concluÃ­dos",
             "messages":         [m for m in [row.get("error_message")] if m],
         })
     return {**data, "items": items}
 
 
-# ─── NFS-e ────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ NFS-e â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/nfse", response_model=dict)
 def get_nfse(
@@ -725,7 +727,7 @@ def put_fila_regra_atribuicao(regra_id: int, data: RegraAtribuicaoUpdate):
         ativo=data.ativo,
     )
     if not row:
-        raise HTTPException(status_code=404, detail=f"Regra {regra_id} não encontrada")
+        raise HTTPException(status_code=404, detail=f"Regra {regra_id} nÃ£o encontrada")
     return row
 
 
@@ -733,7 +735,7 @@ def put_fila_regra_atribuicao(regra_id: int, data: RegraAtribuicaoUpdate):
 def delete_fila_regra_atribuicao(regra_id: int):
     ok = excluir_regra_atribuicao(regra_id)
     if not ok:
-        raise HTTPException(status_code=404, detail=f"Regra {regra_id} não encontrada")
+        raise HTTPException(status_code=404, detail=f"Regra {regra_id} nÃ£o encontrada")
     return {"success": True, "id": regra_id}
 
 
@@ -743,18 +745,45 @@ def post_fila_regras_reaplicar(somente_sem_responsavel: bool = Query(True)):
     return {"success": True, "atualizadas": atualizadas}
 
 
+def _serialize_nota_documento(item: dict | None) -> Optional[NotaDocumentoItem]:
+    if not item:
+        return None
+    processo_id = str(item.get("processo_id"))
+    arquivo_id = int(item.get("id"))
+    return NotaDocumentoItem(
+        id=arquivo_id,
+        processo_id=processo_id,
+        tipo_arquivo=item.get("tipo_arquivo"),
+        nome_arquivo=item.get("nome_arquivo"),
+        content_type=item.get("content_type"),
+        view_url=f"/processos/{processo_id}/arquivos/{arquivo_id}/view",
+        download_url=f"/processos/{processo_id}/arquivos/{arquivo_id}/download",
+    )
+
+
+@app.get("/nfse/{nota_id}/documentos", response_model=NotaDocumentosResponse)
+def get_nota_documentos(nota_id: int):
+    docs = localizar_documentos_nota(nota_id)
+    return NotaDocumentosResponse(
+        nota_id=nota_id,
+        processo_id=docs.get("processo_id"),
+        xml=_serialize_nota_documento(docs.get("xml")),
+        pdf=_serialize_nota_documento(docs.get("pdf")),
+    )
+
+
 @app.put("/nfse/{nota_id}")
 def atualizar_nota(nota_id: int, data: NotaEditRequest):
     """
-    Permite ao auditor salvar edições nos campos editáveis do relatório interativo:
+    Permite ao auditor salvar ediÃ§Ãµes nos campos editÃ¡veis do relatÃ³rio interativo:
     - valor_liquido_correto: valor correto calculado/corrigido manualmente
-    - alertas_fiscais: anotações e alertas do auditor
-    - observacao_interna: anotações operacionais internas
+    - alertas_fiscais: anotaÃ§Ãµes e alertas do auditor
+    - observacao_interna: anotaÃ§Ãµes operacionais internas
     - status_fila_manual: status manual da fila operacional
     - prioridade_manual: prioridade manual da fila
-    - responsavel: responsável atual pela análise
+    - responsavel: responsÃ¡vel atual pela anÃ¡lise
 
-    O status_valor_liquido é recalculado automaticamente.
+    O status_valor_liquido Ã© recalculado automaticamente.
     """
     ok = atualizar_nota_campos_editaveis(
         nota_id=nota_id,
@@ -766,11 +795,11 @@ def atualizar_nota(nota_id: int, data: NotaEditRequest):
         responsavel=data.responsavel,
     )
     if not ok:
-        raise HTTPException(status_code=404, detail=f"Nota {nota_id} não encontrada")
+        raise HTTPException(status_code=404, detail=f"Nota {nota_id} nÃ£o encontrada")
     return {"success": True, "nota_id": nota_id}
 
 
-# ─── Processos ────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Processos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/processos", response_model=dict)
 def get_processos(
@@ -810,7 +839,7 @@ def get_processos(
 def get_processo(processo_id: str):
     proc = obter_processo(processo_id)
     if not proc:
-        raise HTTPException(status_code=404, detail="Processo não encontrado")
+        raise HTTPException(status_code=404, detail="Processo nÃ£o encontrado")
     return proc
 
 
@@ -864,24 +893,35 @@ def get_relatorio_processo(processo_id: str):
 @app.get("/processos/{processo_id}/arquivos/{arquivo_id}/download")
 def download_arquivo(processo_id: str, arquivo_id: int):
     arq = obter_arquivo_processo(arquivo_id)
-    if not arq or arq.processo_id != processo_id:
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    return _arquivo_redirect_or_file(arq, processo_id, inline=False)
 
-    # Tenta MinIO primeiro
+
+@app.get("/processos/{processo_id}/arquivos/{arquivo_id}/view")
+def view_arquivo(processo_id: str, arquivo_id: int):
+    arq = obter_arquivo_processo(arquivo_id)
+    return _arquivo_redirect_or_file(arq, processo_id, inline=True)
+
+
+def _arquivo_redirect_or_file(arq, processo_id: str, inline: bool = False):
+    if not arq or arq.processo_id != processo_id:
+        raise HTTPException(status_code=404, detail="Arquivo nÃ£o encontrado")
+
     if arq.storage_key and is_s3_configured():
         url = generate_presigned_download_url(arq.storage_key)
         if url:
             return RedirectResponse(url)
 
-    # Fallback: arquivo local
     if arq.caminho_local and Path(arq.caminho_local).exists():
+        if inline:
+            return FileResponse(arq.caminho_local, media_type=arq.content_type or None)
         return FileResponse(arq.caminho_local, filename=arq.nome_arquivo)
 
-    raise HTTPException(status_code=404, detail="Arquivo não disponível (não está no MinIO nem localmente)")
+    raise HTTPException(status_code=404, detail="Arquivo nÃ£o disponÃ­vel (nÃ£o estÃ¡ no MinIO nem localmente)")
+
 
 
 def _buscar_conteudo_arquivo(arq) -> tuple:
-    """Busca conteúdo de um arquivo do MinIO ou disco local. Retorna (arq, conteudo)."""
+    """Busca conteÃºdo de um arquivo do MinIO ou disco local. Retorna (arq, conteudo)."""
     conteudo = None
     if arq.storage_key and is_s3_configured():
         try:
@@ -901,8 +941,8 @@ def _buscar_conteudo_arquivo(arq) -> tuple:
 
 def _gerar_zip_stream(arquivos, nome_zip: str):
     """
-    Gerador que produz chunks do ZIP conforme os arquivos são baixados
-    em paralelo. Usa ZIP_STORED para PDFs (já comprimidos) e
+    Gerador que produz chunks do ZIP conforme os arquivos sÃ£o baixados
+    em paralelo. Usa ZIP_STORED para PDFs (jÃ¡ comprimidos) e
     ZIP_DEFLATED para XML/planilhas.
     """
     PASTA = {"pdf": "pdf", "xml": "xml", "relatorio": "planilhas"}
@@ -921,7 +961,7 @@ def _gerar_zip_stream(arquivos, nome_zip: str):
     if not resultados:
         return
 
-    # Monta o ZIP com os arquivos já em memória
+    # Monta o ZIP com os arquivos jÃ¡ em memÃ³ria
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, mode="w") as zf:
         for arq, conteudo in resultados.values():
@@ -940,16 +980,16 @@ def _gerar_zip_stream(arquivos, nome_zip: str):
 def download_zip(processo_id: str):
     """
     Empacota todos os arquivos do processo (PDFs + XMLs + planilha) em um .zip
-    e retorna como stream para download direto no browser do usuário.
-    Busca arquivos do MinIO em paralelo para reduzir latência.
+    e retorna como stream para download direto no browser do usuÃ¡rio.
+    Busca arquivos do MinIO em paralelo para reduzir latÃªncia.
     """
     proc = obter_processo(processo_id)
     if not proc:
-        raise HTTPException(status_code=404, detail="Processo não encontrado")
+        raise HTTPException(status_code=404, detail="Processo nÃ£o encontrado")
 
     arquivos = listar_arquivos_processo(processo_id)
     if not arquivos:
-        raise HTTPException(status_code=404, detail="Nenhum arquivo disponível para este processo")
+        raise HTTPException(status_code=404, detail="Nenhum arquivo disponÃ­vel para este processo")
 
     nome_zip = f"processo_{processo_id[:8]}_{proc.cert_alias.replace(' ', '_')[:30]}.zip"
 
@@ -963,44 +1003,44 @@ def download_zip(processo_id: str):
 @app.get("/processos/{processo_id}/relatorio-csv")
 def download_relatorio_csv(processo_id: str):
     """
-    Exporta o relatório completo do processo como CSV com todos os campos
-    de auditoria no padrão da planilha, com BOM UTF-8 para Excel.
+    Exporta o relatÃ³rio completo do processo como CSV com todos os campos
+    de auditoria no padrÃ£o da planilha, com BOM UTF-8 para Excel.
     """
     proc = obter_processo(processo_id)
     if not proc:
-        raise HTTPException(status_code=404, detail="Processo não encontrado")
+        raise HTTPException(status_code=404, detail="Processo nÃ£o encontrado")
 
     items, _ = listar_notas_por_processo(processo_id, filters={}, page=1, page_size=10000)
     if not items:
         raise HTTPException(status_code=404, detail="Nenhuma nota encontrada para este processo")
 
     COLUNAS = [
-        ("Competência",             "competencia"),
-        ("Município",               "municipio"),
+        ("CompetÃªncia",             "competencia"),
+        ("MunicÃ­pio",               "municipio"),
         ("Chave de Acesso",         "chave_acesso"),
-        ("Data de Emissão",         "data_emissao"),
+        ("Data de EmissÃ£o",         "data_emissao"),
         ("CNPJ/CPF",                "cnpj_cpf"),
-        ("Razão Social",            "razao_social"),
-        ("N° Documento",            "numero_documento"),
+        ("RazÃ£o Social",            "razao_social"),
+        ("NÂ° Documento",            "numero_documento"),
         ("Valor Total",             "valor_total"),
         ("Valor B/C",               "valor_base"),
-        ("Status Base de Cálculo",  "status_base_calculo"),
+        ("Status Base de CÃ¡lculo",  "status_base_calculo"),
         ("CSRF",                    "csrf"),
         ("IRRF",                    "irrf"),
         ("Percentual IRRF",         "percentual_irrf"),
         ("INSS",                    "inss"),
         ("ISS",                     "iss"),
-        ("Valor Líquido",           "valor_liquido"),
-        ("Valor Líquido Correto",   "valor_liquido_correto"),
-        ("Status Valor Líquido",    "status_valor_liquido"),
+        ("Valor LÃ­quido",           "valor_liquido"),
+        ("Valor LÃ­quido Correto",   "valor_liquido_correto"),
+        ("Status Valor LÃ­quido",    "status_valor_liquido"),
         ("Campos ausentes no XML",  "campos_ausentes_xml"),
-        ("Incidência do ISS",       "incidencia_iss"),
+        ("IncidÃªncia do ISS",       "incidencia_iss"),
         ("Data do pagamento",       "data_pagamento"),
-        ("Código de serviço",       "codigo_servico"),
-        ("Descrição do Serviço",    "descricao_servico"),
-        ("Código NBS",              "codigo_nbs"),
-        ("Código CNAE",             "cnae"),
-        ("Descrição CNAE",          "descricao_cnae"),
+        ("CÃ³digo de serviÃ§o",       "codigo_servico"),
+        ("DescriÃ§Ã£o do ServiÃ§o",    "descricao_servico"),
+        ("CÃ³digo NBS",              "codigo_nbs"),
+        ("CÃ³digo CNAE",             "cnae"),
+        ("DescriÃ§Ã£o CNAE",          "descricao_cnae"),
         ("Simples Nacional / XML",  "simples_nacional"),
         ("Consulta Simples API",    "consulta_simples_api"),
         ("Status Simples Nacional", "status_simples_nacional"),
@@ -1028,7 +1068,7 @@ def download_relatorio_csv(processo_id: str):
     )
 
 
-# ─── Utilitários admin ────────────────────────────────────────────────────────
+# â”€â”€â”€ UtilitÃ¡rios admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.post("/admin/limpar-minio")
 def limpar_minio_manual(dias: int = Query(15, ge=1, le=365)):
@@ -1039,7 +1079,7 @@ def limpar_minio_manual(dias: int = Query(15, ge=1, le=365)):
 
 @app.get("/admin/info")
 def info_sistema():
-    """Retorna informações sobre o ambiente do servidor."""
+    """Retorna informaÃ§Ãµes sobre o ambiente do servidor."""
     return {
         "version": "2.2.0",
         "data_dir": _get_data_dir(),

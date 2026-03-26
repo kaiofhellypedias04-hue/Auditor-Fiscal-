@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 import re
 import unicodedata
 from typing import Any, Dict, List, Optional, Tuple
@@ -959,3 +960,105 @@ def backfill_comparativo_tributos(limit: Optional[int] = None) -> int:
             atualizados += 1
 
     return atualizados
+
+
+def _normalize_file_key(value: Any) -> str:
+    txt = str(value or "").strip().lower()
+    txt = unicodedata.normalize("NFD", txt)
+    txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+    txt = re.sub(r"[^a-z0-9]+", "", txt)
+    return txt
+
+
+def _digits_only(value: Any) -> str:
+    return re.sub(r"\D", "", str(value or ""))
+
+
+def _score_arquivo_para_nota(row: dict, tipo_arquivo: str, arquivo_origem_nome: str, arquivo_origem_stem: str, numero_documento: str, chave_nfse: str) -> int:
+    nome = str(row.get("nome_arquivo") or "")
+    stem = Path(nome).stem
+    nome_norm = _normalize_file_key(nome)
+    stem_norm = _normalize_file_key(stem)
+    digits_nome = _digits_only(nome)
+
+    score = 0
+    if arquivo_origem_nome and nome.lower() == arquivo_origem_nome.lower():
+        score = max(score, 120 if tipo_arquivo == "xml" else 95)
+    if arquivo_origem_stem and stem.lower() == arquivo_origem_stem.lower():
+        score = max(score, 115 if tipo_arquivo == "xml" else 100)
+    if arquivo_origem_stem and arquivo_origem_stem in stem_norm:
+        score = max(score, 90)
+    if numero_documento and numero_documento in digits_nome:
+        score = max(score, 70)
+    if chave_nfse and len(chave_nfse) >= 8 and chave_nfse in digits_nome:
+        score = max(score, 80)
+    if arquivo_origem_nome and _normalize_file_key(arquivo_origem_nome) in nome_norm:
+        score = max(score, 85)
+    return score
+
+
+def localizar_documentos_nota(nota_id: int) -> dict:
+    garantir_schema_nfse_notas()
+    with get_conn() as conn:
+        nota = conn.execute(
+            """
+            SELECT
+              n.id,
+              COALESCE(ppn.processo_id, n.processo_id) AS processo_id,
+              n.numero_documento,
+              n.chave_nfse,
+              n.arquivo_origem,
+              n.dados_completos
+            FROM nfse_notas n
+            LEFT JOIN LATERAL (
+              SELECT ppn.processo_id
+              FROM nfse_processo_notas ppn
+              WHERE ppn.nota_id = n.id
+              ORDER BY ppn.created_at DESC, ppn.processo_id DESC
+              LIMIT 1
+            ) ppn ON TRUE
+            WHERE n.id = %s
+            """,
+            (nota_id,),
+        ).fetchone()
+        if not nota:
+            return {"nota_id": nota_id, "processo_id": None, "xml": None, "pdf": None}
+
+        processo_id = str(nota["processo_id"]) if nota["processo_id"] else None
+        if not processo_id:
+            return {"nota_id": nota_id, "processo_id": None, "xml": None, "pdf": None}
+
+        arquivos = conn.execute(
+            """
+            SELECT id, processo_id, tipo_arquivo, nome_arquivo, storage_key, caminho_local, content_type, tamanho_bytes, competencia, created_at
+            FROM nfse_processo_arquivos
+            WHERE processo_id = %s
+              AND tipo_arquivo IN ('xml', 'pdf')
+            ORDER BY created_at DESC, id DESC
+            """,
+            (processo_id,),
+        ).fetchall()
+
+    dados = nota["dados_completos"] or {}
+    arquivo_origem_nome = Path(str(nota["arquivo_origem"] or "")).name
+    arquivo_origem_stem = _normalize_file_key(Path(arquivo_origem_nome).stem) if arquivo_origem_nome else ""
+    numero_documento = _digits_only(nota["numero_documento"] or dados.get("N° Documento") or dados.get("Nº Documento"))
+    chave_nfse = _digits_only(nota["chave_nfse"] or dados.get("Chave de Acesso"))
+
+    best = {"xml": None, "pdf": None}
+    best_score = {"xml": -1, "pdf": -1}
+
+    for row in arquivos:
+        item = dict(row)
+        tipo = str(item.get("tipo_arquivo") or "")
+        score = _score_arquivo_para_nota(item, tipo, arquivo_origem_nome, arquivo_origem_stem, numero_documento, chave_nfse)
+        if score > best_score.get(tipo, -1):
+            best[tipo] = item
+            best_score[tipo] = score
+
+    return {
+        "nota_id": nota_id,
+        "processo_id": processo_id,
+        "xml": best["xml"],
+        "pdf": best["pdf"],
+    }

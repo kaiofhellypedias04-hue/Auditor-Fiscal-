@@ -1223,6 +1223,44 @@ tbody td.actions { white-space: nowrap; }
   color: var(--red);
 }
 
+.queue-documents-panel {
+  margin-top: 2px;
+}
+
+.queue-documents-block {
+  display: grid;
+  gap: 10px;
+}
+
+.queue-documents-list {
+  display: grid;
+  gap: 10px;
+}
+
+.queue-documents-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: rgba(255,255,255,.02);
+}
+
+.queue-documents-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 36px;
+}
+
+.queue-documents-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .compare-diff-neutral {
   color: var(--text-3);
 }

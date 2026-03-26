@@ -319,6 +319,14 @@ async function downloadBlob(baseUrl, processId, arquivoId, filename) {
   URL.revokeObjectURL(url);
 }
 
+function apiUrl(baseUrl, path) {
+  return `${String(baseUrl || '').replace(/\/+$/, '')}${path}`;
+}
+
+function openApiDocument(baseUrl, path) {
+  window.open(apiUrl(baseUrl, path), '_blank', 'noopener,noreferrer');
+}
+
 function toCSV(rows) {
   if (!rows?.length) return '';
   const h = Object.keys(rows[0]);
@@ -556,6 +564,40 @@ function QueuePriorityBadge({ value }) {
 
 function QueueSlaBadge({ sla }) {
   return <span className={cn('sla-pill', `sla-pill-${sla?.tone || 'neutral'}`)}>{sla?.label || 'Sem prazo'}</span>;
+}
+
+function QueueDocumentsBlock({ baseUrl, docsState }) {
+  const docs = docsState?.data;
+  const loading = !!docsState?.loading;
+  const hasXml = !!docs?.xml;
+  const hasPdf = !!docs?.pdf;
+
+  return (
+    <div className="queue-documents-block">
+      <div className="card-title" style={{ marginBottom: 12 }}>Documentos da nota</div>
+      {loading ? <Loading label="Localizando documentos..." /> : null}
+      {docsState?.error && !loading ? <Alert type="warn">Nao foi possivel localizar os documentos desta nota.</Alert> : null}
+      {!loading && !hasXml && !hasPdf ? <Alert type="info">Nenhum documento localizado para esta nota.</Alert> : null}
+      {!loading && (hasXml || hasPdf) ? (
+        <div className="queue-documents-list">
+          <div className="queue-documents-row">
+            <span className="queue-documents-label">XML</span>
+            <div className="queue-documents-actions">
+              <button className="btn btn-ghost btn-xs" disabled={!hasXml} onClick={() => hasXml && openApiDocument(baseUrl, docs.xml.view_url)}>Ver XML</button>
+              <button className="btn btn-ghost btn-xs" disabled={!hasXml} onClick={() => hasXml && openApiDocument(baseUrl, docs.xml.download_url)}>Baixar XML</button>
+            </div>
+          </div>
+          <div className="queue-documents-row">
+            <span className="queue-documents-label">PDF</span>
+            <div className="queue-documents-actions">
+              <button className="btn btn-ghost btn-xs" disabled={!hasPdf} onClick={() => hasPdf && openApiDocument(baseUrl, docs.pdf.view_url)}>Ver PDF</button>
+              <button className="btn btn-ghost btn-xs" disabled={!hasPdf} onClick={() => hasPdf && openApiDocument(baseUrl, docs.pdf.download_url)}>Baixar PDF</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function FilterBar({ children, label = 'Filtros', defaultOpen = true }) {
@@ -1818,6 +1860,10 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
     return api(baseUrl, `/nfse?${q.toString()}`);
   }, [baseUrl, filters.status, filters.empresa, filters.data_tipo, filters.data_inicio, filters.data_fim]);
   const rulesData = useAsync(() => api(baseUrl, '/fila-regras-atribuicao'), [baseUrl]);
+  const docsData = useAsync(
+    () => selected?.id ? api(baseUrl, `/nfse/${selected.id}/documentos`) : Promise.resolve(null),
+    [baseUrl, selected?.id]
+  );
 
   const queueItems = useMemo(() => {
     return (filaData.data?.items || []).map(mapQueueItem);
@@ -2395,10 +2441,10 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
               </div>
             </div>
 
-            <div className="queue-detail-block">
-              <div className="card-title" style={{ marginBottom: 12 }}>Comparativo de tributos</div>
-              <div className="table-wrap queue-compare-table" style={{ border: 'none', borderRadius: 0 }}>
-                <table>
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>Comparativo de tributos</div>
+                <div className="table-wrap queue-compare-table" style={{ border: 'none', borderRadius: 0 }}>
+                  <table>
                   <thead>
                     <tr>
                       <th>Tributo</th>
@@ -2422,11 +2468,15 @@ function FilaDeTrabalhoPage({ baseUrl, toast }) {
                       );
                     })}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
-            </div>
 
-            <div className="queue-detail-grid">
+              <div className="queue-detail-block queue-documents-panel">
+                <QueueDocumentsBlock baseUrl={baseUrl} docsState={docsData} />
+              </div>
+
+              <div className="queue-detail-grid">
               <div className="queue-detail-block">
                 <div className="card-title" style={{ marginBottom: 12 }}>AnÃ¡lise interna</div>
                 <div className="field">
@@ -2517,6 +2567,10 @@ function FilaDeTrabalhoBPage({ baseUrl, toast }) {
     if (empresaFilter !== 'todos') q.set('cert_alias', empresaFilter);
     return api(baseUrl, `/nfse?${q.toString()}`);
   }, [baseUrl, yesterday, statusFilter, empresaFilter]);
+  const docsDataB = useAsync(
+    () => notaAtiva?.id ? api(baseUrl, `/nfse/${notaAtiva.id}/documentos`) : Promise.resolve(null),
+    [baseUrl, notaAtiva?.id]
+  );
 
   const queueItems = useMemo(() => (queueData.data?.items || []).map(mapQueueItem), [queueData.data]);
 
@@ -2865,6 +2919,8 @@ function FilaDeTrabalhoBPage({ baseUrl, toast }) {
                 <div className="queue-b-inline"><span>Status:</span><Badge tone={lovableStatusTone(notaAtiva.queue_status)}>{lovableStatusLabel(notaAtiva.queue_status)}</Badge></div>
                 <div className="queue-b-inline"><span>Prioridade:</span><QueuePriorityBadge value={notaAtiva.queue_prioridade} /></div>
               </div>
+
+              <QueueDocumentsBlock baseUrl={baseUrl} docsState={docsDataB} />
 
               <div>
                 <h4 className="queue-b-block-title">Comparativo de Tributos</h4>

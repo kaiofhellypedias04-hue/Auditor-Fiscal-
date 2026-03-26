@@ -76,6 +76,23 @@ class ArquivoResponse(BaseModel):
     created_at: datetime
 
 
+class NotaDocumentoItem(BaseModel):
+    id: int
+    processo_id: str
+    tipo_arquivo: TipoArquivoEnum
+    nome_arquivo: str
+    content_type: Optional[str] = None
+    view_url: str
+    download_url: str
+
+
+class NotaDocumentosResponse(BaseModel):
+    nota_id: int
+    processo_id: Optional[str] = None
+    xml: Optional[NotaDocumentoItem] = None
+    pdf: Optional[NotaDocumentoItem] = None
+
+
 class NotaReportFilters(BaseModel):
     status: Optional[str] = None
     municipio: Optional[str] = None
