@@ -787,6 +787,22 @@ class NFSeXMLConverter:
             # 🔎 AUDITORIA (MODO ALERTA): NÃO SOBRESCREVE VALORES DO XML
             print(f"\n📋 Processando código de serviço: {cod_servico_normalizado}")
             print(f"📋 Regime (XML): {regime}")
+            comparativo_retencao = self.aplicar_regras_retencao(data, cod_servico_normalizado) or {}
+            categoria_regime = self._categoria_simples(regime)
+            base_calculo = self._to_float(vbc_valor) or self._to_float(valor_total) or 0.0
+
+            irrf_calculado = comparativo_retencao.get('irrf_esperado')
+            csrf_calculado = comparativo_retencao.get('csrf_esperado')
+            iss_calculado = self._to_float(iss_retencao)
+
+            if categoria_regime in ("MEI", "OPTANTE") or base_calculo == 0:
+                irrf_calculado = 0.0
+                csrf_calculado = 0.0
+
+            data['_IRRF_Calculado'] = self.format_currency(irrf_calculado or 0.0)
+            data['_CSRF_Calculado'] = self.format_currency(csrf_calculado or 0.0)
+            data['_ISS_Calculado'] = self.format_currency(iss_calculado or 0.0)
+
             # 2️⃣ GERA ALERTAS (comparação XML x regra) - sem alterar valores
             correcoes = self.verificar_correcoes(data)
             data['_Correcoes'] = correcoes

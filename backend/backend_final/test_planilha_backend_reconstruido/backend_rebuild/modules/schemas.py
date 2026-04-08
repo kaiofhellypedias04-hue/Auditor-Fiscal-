@@ -76,13 +76,63 @@ class ArquivoResponse(BaseModel):
     created_at: datetime
 
 
+class NotaDocumentoItem(BaseModel):
+    id: int
+    processo_id: str
+    tipo_arquivo: TipoArquivoEnum
+    nome_arquivo: str
+    content_type: Optional[str] = None
+    view_url: str
+    download_url: str
+
+
+class NotaDocumentosResponse(BaseModel):
+    nota_id: int
+    processo_id: Optional[str] = None
+    xml: Optional[NotaDocumentoItem] = None
+    pdf: Optional[NotaDocumentoItem] = None
+
+
 class NotaReportFilters(BaseModel):
     status: Optional[str] = None
     municipio: Optional[str] = None
     cnpj_cpf: Optional[str] = None
     competencia: Optional[str] = None
     codigo_servico: Optional[str] = None
+    data_tipo: Optional[str] = None
+    data_inicio: Optional[str] = None
+    data_fim: Optional[str] = None
     somente_divergentes: bool = False
+
+
+class RegraAtribuicaoCreate(BaseModel):
+    campo: str
+    operador: str
+    valor: str
+    responsavel: str
+    prioridade: int = 100
+    ativo: bool = True
+
+
+class RegraAtribuicaoUpdate(BaseModel):
+    campo: str
+    operador: str
+    valor: str
+    responsavel: str
+    prioridade: int = 100
+    ativo: bool = True
+
+
+class RegraAtribuicaoResponse(BaseModel):
+    id: int
+    campo: str
+    operador: str
+    valor: str
+    responsavel: str
+    prioridade: int
+    ativo: bool
+    created_at: datetime
+    updated_at: datetime
 
 
 class NotaReportRow(BaseModel):
@@ -108,7 +158,11 @@ class NotaReportRow(BaseModel):
     valor_liquido: Optional[float] = None
     valor_liquido_correto: Optional[float] = None
     status_valor_liquido: Optional[str] = None
+    irrf_calculado: Optional[float] = None
+    csrf_calculado: Optional[float] = None
+    iss_calculado: Optional[float] = None
     status: Optional[str] = None
+    status_fila: Optional[str] = None
     campos_ausentes_xml: Optional[str] = None
     incidencia_iss: Optional[str] = None
     codigo_servico: Optional[str] = None
@@ -116,6 +170,10 @@ class NotaReportRow(BaseModel):
     cnae: Optional[str] = None
     simples_nacional: Optional[str] = None
     alertas_fiscais: Optional[str] = None
+    observacao_interna: Optional[str] = None
+    status_fila_manual: Optional[str] = None
+    prioridade_manual: Optional[str] = None
+    responsavel: Optional[str] = None
     dia_processado: Optional[datetime] = None
 
 

@@ -1,22 +1,24 @@
-/* ─────────────────────────────────────────────────────────────
+﻿/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    Portal de Auditoria Fiscal NFS-e
-   ───────────────────────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
-// ── Constantes ──────────────────────────────────────────────
+// â”€â”€ Constantes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const MENU = [
-  { key: 'dashboard',    label: 'Dashboard',       section: 'visão geral',  icon: IconDashboard },
-  { key: 'execucao',     label: 'Execução',         section: 'operações',    icon: IconPlay },
-  { key: 'agendamentos', label: 'Agendamentos',     section: 'operações',    icon: IconClock },
+  { key: 'dashboard',    label: 'Dashboard',       section: 'visÃ£o geral',  icon: IconDashboard },
+  { key: 'execucao',     label: 'ExecuÃ§Ã£o',         section: 'operaÃ§Ãµes',    icon: IconPlay },
+  { key: 'agendamentos', label: 'Agendamentos',     section: 'operaÃ§Ãµes',    icon: IconClock },
+  { key: 'fila_trabalho',label: 'Fila de Trabalho', section: 'operaÃ§Ãµes',    icon: IconFolder },
+  { key: 'fila_trabalho_b',label: 'Fila de Trabalho B', section: 'operaÃ§Ãµes',    icon: IconFolder },
   { key: 'processos',    label: 'Processos',        section: 'dados',        icon: IconProcess },
   { key: 'nfse',         label: 'NFS-e',            section: 'dados',        icon: IconDoc },
-  { key: 'relatorio',    label: 'Relatório',        section: 'dados',        icon: IconChart },
-  { key: 'certificados', label: 'Certificados',     section: 'configuração', icon: IconCert },
-  { key: 'credenciais',  label: 'Credenciais',      section: 'configuração', icon: IconKey },
-  { key: 'configuracoes',label: 'Configurações',    section: 'configuração', icon: IconSettings },
+  { key: 'relatorio',    label: 'RelatÃ³rio',        section: 'dados',        icon: IconChart },
+  { key: 'certificados', label: 'Certificados',     section: 'configuraÃ§Ã£o', icon: IconCert },
+  { key: 'credenciais',  label: 'Credenciais',      section: 'configuraÃ§Ã£o', icon: IconKey },
+  { key: 'configuracoes',label: 'ConfiguraÃ§Ãµes',    section: 'configuraÃ§Ã£o', icon: IconSettings },
 ];
 
-// ── Icons ────────────────────────────────────────────────────
+// â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Ico({ d, size = 16, stroke = 'currentColor', fill = 'none' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -47,36 +49,246 @@ function IconInfo()      { return <Ico d={["M12 22c5.523 0 10-4.477 10-10S17.523
 function IconStop()      { return <Ico d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />; }
 function IconFolder()    { return <Ico d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />; }
 
-// ── Utilitários ──────────────────────────────────────────────
+// â”€â”€ UtilitÃ¡rios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function cn(...c) { return c.filter(Boolean).join(' '); }
 
 function fmtMoney(v) {
-  if (v === null || v === undefined || v === '') return '—';
+  if (v === null || v === undefined || v === '') return 'â€”';
   const n = Number(v);
   if (isNaN(n)) return String(v);
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function fmtDate(v) {
-  if (!v) return '—';
+  if (!v) return 'â€”';
   const d = new Date(v);
   if (isNaN(d)) return String(v);
   return d.toLocaleString('pt-BR');
 }
 
 function fmtDateShort(v) {
-  if (!v) return '—';
+  if (!v) return 'â€”';
   const d = new Date(v);
   if (isNaN(d)) return String(v);
   return d.toLocaleDateString('pt-BR');
 }
 
+function fmtCompetenciaFromDate(v) {
+  if (!v) return 'â€”';
+  const d = new Date(v);
+  if (isNaN(d)) return 'â€”';
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
 function today() { return new Date().toISOString().slice(0, 10); }
+
+function isoDateLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function daysAgo(days) {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() - days);
+  return isoDateLocal(d);
+}
 
 function clientName(alias) {
   if (!alias) return 'Cliente';
   if (alias.includes(' - ')) return alias.split(' - ').slice(1).join(' - ').trim();
   return alias;
+}
+
+function normFilterValue(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeQueuePriority(value) {
+  const txt = normFilterValue(value);
+  if (txt.startsWith('alt')) return 'alta';
+  if (txt.startsWith('med')) return 'media';
+  if (txt.startsWith('baix')) return 'baixa';
+  return 'baixa';
+}
+
+function normalizeQueueStatus(value) {
+  const raw = String(value || '').toLowerCase();
+  if (raw.includes('diverg')) return 'divergente';
+  if (raw.includes('corret')) return 'correta';
+  if (raw.includes('pend')) return 'pendente';
+  return value || 'pendente';
+}
+
+function lovableStatusFromQueue(value) {
+  const status = normalizeQueueStatus(value);
+  if (status === 'divergente') return 'divergente';
+  if (status === 'correta') return 'ok';
+  return 'a_analisar';
+}
+
+function lovableStatusLabel(value) {
+  const status = lovableStatusFromQueue(value);
+  if (status === 'divergente') return 'Divergente';
+  if (status === 'ok') return 'OK';
+  return 'A analisar';
+}
+
+function lovableStatusTone(value) {
+  const status = lovableStatusFromQueue(value);
+  if (status === 'divergente') return 'danger';
+  if (status === 'ok') return 'success';
+  return 'info';
+}
+
+function queuePriorityFromRow(row) {
+  const hasManual = String(row.prioridade_manual || '').trim();
+  if (hasManual) return normalizeQueuePriority(row.prioridade_manual);
+  const status = normalizeQueueStatus(row.status_fila || row.status_fila_manual || row.status);
+  const hasMissing = !!String(row.campos_ausentes_xml || '').trim();
+  const hasAlerts = hasQueueAlert(row);
+  if (status === 'divergente' && hasMissing) return 'alta';
+  if (status === 'divergente' || hasAlerts) return 'media';
+  return 'baixa';
+}
+
+function queueResponsavelFromRow(row) {
+  return row.responsavel || 'NÃ£o atribuÃ­do';
+}
+
+function queueSlaFromDate(dateValue, prioridade) {
+  if (!dateValue) return { label: 'Sem prazo', tone: 'neutral', hours: null };
+  const base = new Date(dateValue);
+  if (isNaN(base)) return { label: 'Sem prazo', tone: 'neutral', hours: null };
+
+  const elapsedHours = Math.max(0, Math.round((Date.now() - base.getTime()) / 36e5));
+  const thresholds = {
+    alta: { warn: 24, danger: 48 },
+    media: { warn: 36, danger: 72 },
+    baixa: { warn: 72, danger: 120 },
+  }[prioridade] || { warn: 36, danger: 72 };
+
+  if (elapsedHours >= thresholds.danger) return { label: `${elapsedHours}h`, tone: 'danger', hours: elapsedHours };
+  if (elapsedHours >= thresholds.warn) return { label: `${elapsedHours}h`, tone: 'warn', hours: elapsedHours };
+  return { label: `${elapsedHours}h`, tone: 'ok', hours: elapsedHours };
+}
+
+function queueDivergenciaLabel(row) {
+  const missing = String(row.campos_ausentes_xml || '').trim();
+  const alerts = hasQueueAlert(row);
+  if (missing) return 'Campos ausentes';
+  if (alerts) return 'Alerta fiscal';
+  return 'Sem divergÃªncia';
+}
+
+function hasQueueAlert(row) {
+  const raw = String(row.alertas_fiscais || '').trim();
+  if (!raw) return false;
+  const txt = normFilterValue(raw);
+  if (txt.includes('correto') && !txt.includes('diverg') && !txt.includes('nao deve') && !txt.includes('deveria')) {
+    return false;
+  }
+  return true;
+}
+
+function getQueueAlertMeta(row) {
+  const text = String(row.alertas_fiscais || '').trim();
+  if (!text) return null;
+  if (hasQueueAlert(row)) {
+    return { type: 'error', title: 'Alertas fiscais', text };
+  }
+  return { type: 'info', title: 'ObservaÃ§Ã£o fiscal', text };
+}
+
+function mapQueueItem(row) {
+  const statusFila = row.status_fila || row.status_fila_manual || row.status;
+  const prioridade = queuePriorityFromRow(row);
+  const responsavel = queueResponsavelFromRow(row);
+  const entrada = row.updated_at || row.created_at || null;
+  const competencia = row.competencia || fmtCompetenciaFromDate(row.data_emissao);
+
+  return {
+    ...row,
+    queue_status: normalizeQueueStatus(statusFila),
+    queue_empresa: clientName(row.certificado || row.cert_alias || ''),
+    queue_empresa_alias: row.certificado || row.cert_alias || '',
+    queue_prestador: row.razao_social || row.parte_exibicao_nome || 'â€”',
+    queue_numero_nota: row.numero_documento || row.chave_acesso || `Nota ${row.id}`,
+    queue_prioridade: prioridade,
+    queue_responsavel: responsavel,
+    queue_divergencia: queueDivergenciaLabel(row),
+    queue_entrada: entrada,
+    queue_sla: queueSlaFromDate(entrada, prioridade),
+    queue_competencia: competencia,
+  };
+}
+
+function buildQueueTributosComparativo(row) {
+  const toNum = v => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const make = (label, informado, calculado) => ({
+    label,
+    informado: toNum(informado),
+    calculado: toNum(calculado),
+  });
+
+  return [
+    make('IRRF', row.irrf, row.irrf_calculado),
+    make('CSRF', row.csrf, row.csrf_calculado),
+    make('ISS', row.iss, row.iss_calculado != null ? row.iss_calculado : row.iss),
+  ];
+}
+
+function matchQueueSmartSearch(item, query) {
+  const raw = String(query || '').trim();
+  if (!raw) return true;
+
+  const fields = {
+    nota: normFilterValue(item.queue_numero_nota),
+    competencia: normFilterValue(item.queue_competencia),
+    empresa: normFilterValue(item.queue_empresa),
+    prestador: normFilterValue(item.queue_prestador),
+    valor: normFilterValue(fmtMoney(item.valor_total)),
+    status: normFilterValue(item.queue_status),
+    divergencia: normFilterValue(item.queue_divergencia),
+    prioridade: normFilterValue(item.queue_prioridade),
+    responsavel: normFilterValue(item.queue_responsavel),
+    entrada: normFilterValue(fmtDate(item.queue_entrada)),
+    sla: normFilterValue(item.queue_sla?.label),
+  };
+
+  const aliases = {
+    n: 'nota',
+    numero: 'nota',
+    competencia: 'competencia',
+    empresa: 'empresa',
+    prestador: 'prestador',
+    valor: 'valor',
+    status: 'status',
+    divergencia: 'divergencia',
+    prioridade: 'prioridade',
+    responsavel: 'responsavel',
+    entrada: 'entrada',
+    sla: 'sla',
+  };
+
+  const haystack = Object.values(fields).join(' ');
+  const tokens = raw.split(/\s+/).map(normFilterValue).filter(Boolean);
+
+  return tokens.every(token => {
+    const idx = token.indexOf(':');
+    if (idx > 0) {
+      const key = aliases[token.slice(0, idx)];
+      const value = token.slice(idx + 1);
+      if (key && value) return fields[key].includes(value);
+    }
+    return haystack.includes(token);
+  });
 }
 
 async function api(baseUrl, path, opts = {}) {
@@ -107,6 +319,14 @@ async function downloadBlob(baseUrl, processId, arquivoId, filename) {
   URL.revokeObjectURL(url);
 }
 
+function apiUrl(baseUrl, path) {
+  return `${String(baseUrl || '').replace(/\/+$/, '')}${path}`;
+}
+
+function openApiDocument(baseUrl, path) {
+  window.open(apiUrl(baseUrl, path), '_blank', 'noopener,noreferrer');
+}
+
 function toCSV(rows) {
   if (!rows?.length) return '';
   const h = Object.keys(rows[0]);
@@ -122,34 +342,34 @@ function dlCSV(rows, name) {
   URL.revokeObjectURL(url);
 }
 
-// Exportação do relatório com cabeçalho exato no padrão da planilha de auditoria
+// ExportaÃ§Ã£o do relatÃ³rio com cabeÃ§alho exato no padrÃ£o da planilha de auditoria
 const RELATORIO_COLUNAS = [
-  { header: 'Competência',            key: 'competencia' },
-  { header: 'Município',              key: 'municipio' },
+  { header: 'CompetÃªncia',            key: 'competencia' },
+  { header: 'MunicÃ­pio',              key: 'municipio' },
   { header: 'Chave de Acesso',        key: 'chave_acesso' },
-  { header: 'Data de Emissão',        key: 'data_emissao' },
+  { header: 'Data de EmissÃ£o',        key: 'data_emissao' },
   { header: 'CNPJ/CPF',              key: 'cnpj_cpf' },
-  { header: 'Razão Social',           key: 'razao_social' },
-  { header: 'N° Documento',           key: 'numero_documento' },
+  { header: 'RazÃ£o Social',           key: 'razao_social' },
+  { header: 'NÂ° Documento',           key: 'numero_documento' },
   { header: 'Valor Total',            key: 'valor_total' },
   { header: 'Valor B/C',              key: 'valor_base' },
-  { header: 'Status Base de Cálculo', key: 'status_base_calculo' },
+  { header: 'Status Base de CÃ¡lculo', key: 'status_base_calculo' },
   { header: 'CSRF',                   key: 'csrf' },
   { header: 'IRRF',                   key: 'irrf' },
   { header: 'Percentual IRRF',        key: 'percentual_irrf' },
   { header: 'INSS',                   key: 'inss' },
   { header: 'ISS',                    key: 'iss' },
-  { header: 'Valor Líquido',          key: 'valor_liquido' },
-  { header: 'Valor Líquido Correto',  key: 'valor_liquido_correto' },
-  { header: 'Status Valor Líquido',   key: 'status_valor_liquido' },
+  { header: 'Valor LÃ­quido',          key: 'valor_liquido' },
+  { header: 'Valor LÃ­quido Correto',  key: 'valor_liquido_correto' },
+  { header: 'Status Valor LÃ­quido',   key: 'status_valor_liquido' },
   { header: 'Campos ausentes no XML', key: 'campos_ausentes_xml' },
-  { header: 'Incidência do ISS',      key: 'incidencia_iss' },
+  { header: 'IncidÃªncia do ISS',      key: 'incidencia_iss' },
   { header: 'Data do pagamento',      key: 'data_pagamento' },
-  { header: 'Código de serviço',      key: 'codigo_servico' },
-  { header: 'Descrição do Serviço',   key: 'descricao_servico' },
-  { header: 'Código NBS',             key: 'codigo_nbs' },
-  { header: 'Código CNAE',            key: 'cnae' },
-  { header: 'Descrição CNAE',         key: 'descricao_cnae' },
+  { header: 'CÃ³digo de serviÃ§o',      key: 'codigo_servico' },
+  { header: 'DescriÃ§Ã£o do ServiÃ§o',   key: 'descricao_servico' },
+  { header: 'CÃ³digo NBS',             key: 'codigo_nbs' },
+  { header: 'CÃ³digo CNAE',            key: 'cnae' },
+  { header: 'DescriÃ§Ã£o CNAE',         key: 'descricao_cnae' },
   { header: 'Simples Nacional / XML', key: 'simples_nacional' },
   { header: 'Consulta Simples API',   key: 'consulta_simples_api' },
   { header: 'Status Simples Nacional',key: 'status_simples_nacional' },
@@ -164,7 +384,7 @@ function exportRelatorioCSV(rows, name) {
   if (!rows?.length) return;
   const esc = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
 
-  // Para cada linha, busca o valor pelo key — se não achar tenta variações comuns
+  // Para cada linha, busca o valor pelo key â€” se nÃ£o achar tenta variaÃ§Ãµes comuns
   const get = (row, key) => {
     if (row[key] !== undefined && row[key] !== null) return row[key];
     // Fallbacks para campos que a API pode retornar com nome diferente
@@ -202,7 +422,7 @@ function exportRelatorioCSV(rows, name) {
   URL.revokeObjectURL(url);
 }
 
-// ── Hooks ────────────────────────────────────────────────────
+// â”€â”€ Hooks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function useAsync(fn, deps = []) {
   const [state, setState] = useState({ data: null, loading: false, error: '' });
   const run = useCallback(async () => {
@@ -230,7 +450,7 @@ function useToast() {
   return { toasts, toast: add };
 }
 
-// ── Primitivos UI ────────────────────────────────────────────
+// â”€â”€ Primitivos UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Spinner({ size = 16 }) {
   return <div className="spinner" style={{ width: size, height: size }} />;
 }
@@ -287,7 +507,7 @@ function Confirm({ open, title, msg, onOk, onCancel, danger }) {
     <div className="modal-overlay" onClick={onCancel}>
       <div className="confirm-box" onClick={e => e.stopPropagation()}>
         <div className={cn('confirm-icon', danger ? 'danger' : 'info')}>
-          {danger ? '⚠️' : 'ℹ️'}
+          {danger ? 'âš ï¸' : 'â„¹ï¸'}
         </div>
         <div className="confirm-title">{title}</div>
         <div className="confirm-msg">{msg}</div>
@@ -306,18 +526,18 @@ function Pagination({ page, pageSize, total, onPage, onSize }) {
   return (
     <div className="pagination">
       <span className="pagination-info">
-        {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total || 0)} de {total || 0}
+        {((page - 1) * pageSize) + 1}â€“{Math.min(page * pageSize, total || 0)} de {total || 0}
       </span>
       <div className="pagination-controls">
         {onSize && (
           <select className="select" style={{ width: 'auto', padding: '5px 28px 5px 10px', fontSize: 12 }}
             value={pageSize} onChange={e => onSize(Number(e.target.value))}>
-            {[10, 25, 50, 100].map(s => <option key={s} value={s}>{s}/pág</option>)}
+            {[10, 25, 50, 100].map(s => <option key={s} value={s}>{s}/pÃ¡g</option>)}
           </select>
         )}
-        <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>←</button>
+        <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>â†</button>
         <span style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{page}/{totalPages}</span>
-        <button className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>→</button>
+        <button className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>â†’</button>
       </div>
     </div>
   );
@@ -335,8 +555,53 @@ function SectionHeader({ title, sub, actions }) {
   );
 }
 
-function FilterBar({ children, label = 'Filtros' }) {
-  const [open, setOpen] = useState(true);
+function QueuePriorityBadge({ value }) {
+  const normalized = normalizeQueuePriority(value);
+  const tone = normalized === 'alta' ? 'danger' : normalized === 'media' ? 'warn' : 'success';
+  const label = normalized === 'alta' ? 'Alta' : normalized === 'media' ? 'MÃ©dia' : 'Baixa';
+  return <Badge tone={tone}>{label}</Badge>;
+}
+
+function QueueSlaBadge({ sla }) {
+  return <span className={cn('sla-pill', `sla-pill-${sla?.tone || 'neutral'}`)}>{sla?.label || 'Sem prazo'}</span>;
+}
+
+function QueueDocumentsBlock({ baseUrl, docsState }) {
+  const docs = docsState?.data;
+  const loading = !!docsState?.loading;
+  const hasXml = !!docs?.xml;
+  const hasPdf = !!docs?.pdf;
+
+  return (
+    <div className="queue-documents-block">
+      <div className="card-title" style={{ marginBottom: 12 }}>Documentos da nota</div>
+      {loading ? <Loading label="Localizando documentos..." /> : null}
+      {docsState?.error && !loading ? <Alert type="warn">Nao foi possivel localizar os documentos desta nota.</Alert> : null}
+      {!loading && !hasXml && !hasPdf ? <Alert type="info">Nenhum documento localizado para esta nota.</Alert> : null}
+      {!loading && (hasXml || hasPdf) ? (
+        <div className="queue-documents-list">
+          <div className="queue-documents-row">
+            <span className="queue-documents-label">XML</span>
+            <div className="queue-documents-actions">
+              <button className="btn btn-ghost btn-xs" disabled={!hasXml} onClick={() => hasXml && openApiDocument(baseUrl, docs.xml.view_url)}>Ver XML</button>
+              <button className="btn btn-ghost btn-xs" disabled={!hasXml} onClick={() => hasXml && openApiDocument(baseUrl, docs.xml.download_url)}>Baixar XML</button>
+            </div>
+          </div>
+          <div className="queue-documents-row">
+            <span className="queue-documents-label">PDF</span>
+            <div className="queue-documents-actions">
+              <button className="btn btn-ghost btn-xs" disabled={!hasPdf} onClick={() => hasPdf && openApiDocument(baseUrl, docs.pdf.view_url)}>Ver PDF</button>
+              <button className="btn btn-ghost btn-xs" disabled={!hasPdf} onClick={() => hasPdf && openApiDocument(baseUrl, docs.pdf.download_url)}>Baixar PDF</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function FilterBar({ children, label = 'Filtros', defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="filter-bar">
       <div className="filter-bar-head" onClick={() => setOpen(o => !o)}>
@@ -344,7 +609,7 @@ function FilterBar({ children, label = 'Filtros' }) {
           <IconFilter />
           {label}
         </span>
-        <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{open ? '▲' : '▼'}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{open ? 'â–²' : 'â–¼'}</span>
       </div>
       <div className={cn('filter-bar-body', !open && 'hidden')}>
         {children}
@@ -353,13 +618,13 @@ function FilterBar({ children, label = 'Filtros' }) {
   );
 }
 
-// ── Toast container ──────────────────────────────────────────
+// â”€â”€ Toast container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ToastContainer({ toasts }) {
   return (
     <div className="toast-container">
       {toasts.map(t => (
         <div key={t.id} className={`toast ${t.type}`}>
-          {t.type === 'success' ? '✓' : t.type === 'error' ? '✕' : 'ℹ'}
+          {t.type === 'success' ? 'âœ“' : t.type === 'error' ? 'âœ•' : 'â„¹'}
           <span>{t.msg}</span>
         </div>
       ))}
@@ -367,7 +632,7 @@ function ToastContainer({ toasts }) {
   );
 }
 
-// ── Page: Dashboard ──────────────────────────────────────────
+// â”€â”€ Page: Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function DashboardPage({ baseUrl, toast }) {
   const health  = useAsync(() => api(baseUrl, '/health'), [baseUrl]);
   const execs   = useAsync(() => api(baseUrl, '/execucoes?page=1&page_size=5'), [baseUrl]);
@@ -383,7 +648,7 @@ function DashboardPage({ baseUrl, toast }) {
 
   return (
     <div className="page-enter">
-      <SectionHeader title="Dashboard" sub="Visão geral do sistema de auditoria fiscal" />
+      <SectionHeader title="Dashboard" sub="VisÃ£o geral do sistema de auditoria fiscal" />
 
       <div className="stat-grid">
         <div className={cn('stat-card', stats.status === 'ok' ? 'success' : 'danger')}>
@@ -391,7 +656,7 @@ function DashboardPage({ baseUrl, toast }) {
           <div className="stat-value">{stats.status}</div>
         </div>
         <div className="stat-card info">
-          <div className="stat-label">Execuções</div>
+          <div className="stat-label">ExecuÃ§Ãµes</div>
           <div className="stat-value">{stats.execucoes}</div>
         </div>
         <div className="stat-card neutral">
@@ -406,20 +671,20 @@ function DashboardPage({ baseUrl, toast }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div className="card">
-          <div className="card-header"><span className="card-title">Execuções recentes</span></div>
+          <div className="card-header"><span className="card-title">ExecuÃ§Ãµes recentes</span></div>
           <div className="card-body" style={{ padding: 0 }}>
             {execs.loading ? <div style={{ padding: 20 }}><Loading /></div> : (
               <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
                 <table>
                   <thead><tr>
-                    <th>Cliente</th><th>Período</th><th>Status</th><th>Criado em</th>
+                    <th>Cliente</th><th>PerÃ­odo</th><th>Status</th><th>Criado em</th>
                   </tr></thead>
                   <tbody>
-                    {(execs.data?.items || []).length === 0 ? <Empty msg="Nenhuma execução" /> :
+                    {(execs.data?.items || []).length === 0 ? <Empty msg="Nenhuma execuÃ§Ã£o" /> :
                       (execs.data?.items || []).map(r => (
                         <tr key={r.job_id}>
                           <td className="primary">{r.client_name}</td>
-                          <td className="mono">{r.period_start} → {r.period_end}</td>
+                          <td className="mono">{r.period_start} â†’ {r.period_end}</td>
                           <td><StatusBadge value={r.status} /></td>
                           <td>{fmtDate(r.created_at)}</td>
                         </tr>
@@ -462,7 +727,7 @@ function DashboardPage({ baseUrl, toast }) {
   );
 }
 
-// ── Page: Execução ───────────────────────────────────────────
+// â”€â”€ Page: ExecuÃ§Ã£o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ExecucaoPage({ baseUrl, toast }) {
   const certs = useAsync(() => api(baseUrl, '/certificados'), [baseUrl]);
   const creds = useAsync(() => api(baseUrl, '/credenciais'), [baseUrl]);
@@ -487,7 +752,7 @@ function ExecucaoPage({ baseUrl, toast }) {
   const [modoAuto, setModoAuto] = useState(false);
   const [showDirHistory, setShowDirHistory] = useState(false);
 
-  // Histórico dos últimos 5 diretórios usados
+  // HistÃ³rico dos Ãºltimos 5 diretÃ³rios usados
   const getDirHistory = () => {
     try { return JSON.parse(localStorage.getItem('nfse_dir_history') || '[]'); } catch { return []; }
   };
@@ -519,12 +784,12 @@ function ExecucaoPage({ baseUrl, toast }) {
         const d = await api(baseUrl, '/agendar', { method: 'POST', body: payload });
         setResult(d);
         saveDirHistory(form.base_dir);
-        toast(`Modo automático ativado — próxima execução: ${d.proxima_execucao ? fmtDate(d.proxima_execucao) : 'em breve'}`, 'success');
+        toast(`Modo automÃ¡tico ativado â€” prÃ³xima execuÃ§Ã£o: ${d.proxima_execucao ? fmtDate(d.proxima_execucao) : 'em breve'}`, 'success');
       } else {
         const d = await api(baseUrl, '/executar', { method: 'POST', body: payload });
         setResult(d);
         saveDirHistory(form.base_dir);
-        toast(`Execução iniciada — Job: ${d.job_id?.slice(0, 8)}...`, 'success');
+        toast(`ExecuÃ§Ã£o iniciada â€” Job: ${d.job_id?.slice(0, 8)}...`, 'success');
       }
     } catch (e) { toast(e.message, 'error'); } finally { setLoading(false); }
   };
@@ -533,41 +798,41 @@ function ExecucaoPage({ baseUrl, toast }) {
 
   return (
     <div className="page-enter">
-      <SectionHeader title="Execução" sub="Disparo manual ou agendamento automático da automação" />
+      <SectionHeader title="ExecuÃ§Ã£o" sub="Disparo manual ou agendamento automÃ¡tico da automaÃ§Ã£o" />
 
       {result && (
         <Alert type="success">
           {modoAuto
-            ? `✓ Modo automático ativado. Próxima execução: ${result.proxima_execucao ? fmtDate(result.proxima_execucao) : '—'}`
-            : `✓ Execução iniciada. Job ID: ${result.job_id}`}
+            ? `âœ“ Modo automÃ¡tico ativado. PrÃ³xima execuÃ§Ã£o: ${result.proxima_execucao ? fmtDate(result.proxima_execucao) : 'â€”'}`
+            : `âœ“ ExecuÃ§Ã£o iniciada. Job ID: ${result.job_id}`}
         </Alert>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20 }}>
-        {/* Configuração */}
+        {/* ConfiguraÃ§Ã£o */}
         <div className="card">
-          <div className="card-header"><span className="card-title">Configuração</span></div>
+          <div className="card-header"><span className="card-title">ConfiguraÃ§Ã£o</span></div>
           <div className="card-body">
             <div className="form-grid">
 
               {/* Modo */}
               <div>
-                <div className="label" style={{ marginBottom: 8 }}>Modo de operação</div>
+                <div className="label" style={{ marginBottom: 8 }}>Modo de operaÃ§Ã£o</div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     className={cn('btn btn-sm', !modoAuto ? 'btn-primary' : 'btn-ghost')}
                     onClick={() => setModoAuto(false)}>
-                    ▶ Manual
+                    â–¶ Manual
                   </button>
                   <button
                     className={cn('btn btn-sm', modoAuto ? 'btn-primary' : 'btn-ghost')}
                     onClick={() => setModoAuto(true)}>
-                    ⏱ Automático — Últimos 30 dias
+                    â± AutomÃ¡tico â€” Ãšltimos 30 dias
                   </button>
                 </div>
               </div>
 
-              {/* Período — só no manual */}
+              {/* PerÃ­odo â€” sÃ³ no manual */}
               {!modoAuto && (
                 <div className="form-grid form-cols-2">
                   <div className="field">
@@ -581,12 +846,12 @@ function ExecucaoPage({ baseUrl, toast }) {
                 </div>
               )}
 
-              {/* Horário — só no automático */}
+              {/* HorÃ¡rio â€” sÃ³ no automÃ¡tico */}
               {modoAuto && (
                 <div className="field" style={{ maxWidth: 180 }}>
-                  <label className="label">Horário de execução diária</label>
+                  <label className="label">HorÃ¡rio de execuÃ§Ã£o diÃ¡ria</label>
                   <input type="time" className="input" value={form.hora_execucao} onChange={e => f('hora_execucao', e.target.value)} />
-                  <span className="input-hint">A execução ocorrerá todos os dias neste horário</span>
+                  <span className="input-hint">A execuÃ§Ã£o ocorrerÃ¡ todos os dias neste horÃ¡rio</span>
                 </div>
               )}
 
@@ -614,7 +879,7 @@ function ExecucaoPage({ baseUrl, toast }) {
                     onChange={e => f('chunk_days', e.target.value)} />
                 </div>
                 <div className="field" style={{ position: 'relative' }}>
-                  <label className="label">Diretório de saída</label>
+                  <label className="label">DiretÃ³rio de saÃ­da</label>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <input
                       className="input"
@@ -626,12 +891,12 @@ function ExecucaoPage({ baseUrl, toast }) {
                       style={{ flex: 1 }}
                     />
                     <button type="button" className="btn btn-ghost" style={{ flexShrink: 0, padding: '0 12px' }}
-                      title="Ver últimos diretórios usados"
+                      title="Ver Ãºltimos diretÃ³rios usados"
                       onClick={() => setShowDirHistory(h => !h)}>
                       <IconFolder />
                     </button>
                   </div>
-                  {/* Dropdown de histórico */}
+                  {/* Dropdown de histÃ³rico */}
                   {showDirHistory && getDirHistory().length > 0 && (
                     <div style={{
                       position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
@@ -652,7 +917,7 @@ function ExecucaoPage({ baseUrl, toast }) {
                     </div>
                   )}
                   <span className="input-hint">
-                    Digite o caminho completo da pasta onde os arquivos serão salvos.
+                    Digite o caminho completo da pasta onde os arquivos serÃ£o salvos.
                     Windows: <code style={{ color: 'var(--accent)', fontSize: 10 }}>C:\Users\Nome\Documentos\NFS-e</code>
                   </span>
                 </div>
@@ -672,7 +937,7 @@ function ExecucaoPage({ baseUrl, toast }) {
           </div>
         </div>
 
-        {/* Seleção de aliases */}
+        {/* SeleÃ§Ã£o de aliases */}
         <div className="card">
           <div className="card-header">
             <span className="card-title">{isCred ? 'Credenciais' : 'Certificados'}</span>
@@ -704,7 +969,7 @@ function ExecucaoPage({ baseUrl, toast }) {
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button className="btn btn-primary" disabled={loading || !form.cert_aliases.length} onClick={executar}
                 style={{ justifyContent: 'center' }}>
-                {loading ? <><Spinner size={14} /> Processando...</> : modoAuto ? '⏱ Ativar modo automático' : '▶ Executar agora'}
+                {loading ? <><Spinner size={14} /> Processando...</> : modoAuto ? 'â± Ativar modo automÃ¡tico' : 'â–¶ Executar agora'}
               </button>
             </div>
           </div>
@@ -714,7 +979,7 @@ function ExecucaoPage({ baseUrl, toast }) {
   );
 }
 
-// ── Page: Agendamentos ───────────────────────────────────────
+// â”€â”€ Page: Agendamentos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function AgendamentosPage({ baseUrl, toast }) {
   const list = useAsync(() => api(baseUrl, '/agendamentos'), [baseUrl]);
   const [confirm, setConfirm] = useState(null);
@@ -747,13 +1012,13 @@ function AgendamentosPage({ baseUrl, toast }) {
     <div className="page-enter">
       <SectionHeader
         title="Agendamentos"
-        sub="Jobs automáticos e consulta de status"
+        sub="Jobs automÃ¡ticos e consulta de status"
         actions={<button className="btn btn-ghost btn-sm" onClick={list.reload}><IconRefresh /> Atualizar</button>}
       />
 
       {/* Consulta de status */}
       <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-header"><span className="card-title">Consultar status de execução</span></div>
+        <div className="card-header"><span className="card-title">Consultar status de execuÃ§Ã£o</span></div>
         <div className="card-body">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, maxWidth: 560 }}>
             <input className="input" placeholder="Job ID ou processo ID" value={statusId}
@@ -795,19 +1060,19 @@ function AgendamentosPage({ baseUrl, toast }) {
             <div className="table-wrap scrollable" style={{ border: 'none', borderRadius: 0 }}>
               <table>
                 <thead><tr>
-                  <th>Job ID</th><th>Descrição</th><th>Intervalo</th>
-                  <th>Última execução</th><th>Próxima</th><th>Status</th><th></th>
+                  <th>Job ID</th><th>DescriÃ§Ã£o</th><th>Intervalo</th>
+                  <th>Ãšltima execuÃ§Ã£o</th><th>PrÃ³xima</th><th>Status</th><th></th>
                 </tr></thead>
                 <tbody>
                   {jobs.length === 0 ? <Empty msg="Nenhum agendamento ativo" /> :
                     jobs.map(j => (
                       <tr key={j.job_id}>
-                        <td className="mono" style={{ fontSize: 11 }}>{String(j.job_id).slice(0, 8)}…</td>
+                        <td className="mono" style={{ fontSize: 11 }}>{String(j.job_id).slice(0, 8)}â€¦</td>
                         <td className="primary" style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          title={j.descricao}>{j.descricao || '—'}</td>
-                        <td className="mono">{j.intervalo_segundos ? `${Math.round(j.intervalo_segundos / 3600)}h` : '—'}</td>
-                        <td>{j.ultima_execucao ? fmtDate(j.ultima_execucao) : '—'}</td>
-                        <td>{j.proxima_execucao ? fmtDate(j.proxima_execucao) : '—'}</td>
+                          title={j.descricao}>{j.descricao || 'â€”'}</td>
+                        <td className="mono">{j.intervalo_segundos ? `${Math.round(j.intervalo_segundos / 3600)}h` : 'â€”'}</td>
+                        <td>{j.ultima_execucao ? fmtDate(j.ultima_execucao) : 'â€”'}</td>
+                        <td>{j.proxima_execucao ? fmtDate(j.proxima_execucao) : 'â€”'}</td>
                         <td><StatusBadge value={j.running || j.ativo ? 'running' : 'queued'} /></td>
                         <td className="actions">
                           {j.job_id !== '__minio_cleanup__' && (
@@ -826,18 +1091,18 @@ function AgendamentosPage({ baseUrl, toast }) {
       </div>
 
       <Confirm open={!!confirm} title="Cancelar agendamento"
-        msg={`Deseja cancelar o job ${String(confirm || '').slice(0, 8)}…? O processo não será mais executado automaticamente.`}
+        msg={`Deseja cancelar o job ${String(confirm || '').slice(0, 8)}â€¦? O processo nÃ£o serÃ¡ mais executado automaticamente.`}
         danger onOk={cancelar} onCancel={() => setConfirm(null)} />
     </div>
   );
 }
 
-// ── Page: Processos ──────────────────────────────────────────
-// Nível 1: cards de empresas
-// Nível 2: lista de processos da empresa selecionada
-// Nível 3: modal com pastas NFS-e / XML / Planilha + notas
+// â”€â”€ Page: Processos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// NÃ­vel 1: cards de empresas
+// NÃ­vel 2: lista de processos da empresa selecionada
+// NÃ­vel 3: modal com pastas NFS-e / XML / Planilha + notas
 
-// Ícones de pasta por tipo
+// Ãcones de pasta por tipo
 function IconPastaPDF({ size = 18 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -908,7 +1173,7 @@ function FileRow({ file, baseUrl, toast }) {
   const [hovered, setHovered] = React.useState(false);
   const ext = file.nome_arquivo?.split('.').pop()?.toUpperCase() || '';
 
-  // Ícone SVG por tipo de arquivo (estilo documento)
+  // Ãcone SVG por tipo de arquivo (estilo documento)
   const fileIcon = {
     PDF: (
       <svg width="28" height="34" viewBox="0 0 28 34" fill="none">
@@ -966,7 +1231,7 @@ function FileRow({ file, baseUrl, toast }) {
         transition: 'background .1s',
       }}
     >
-      {/* Ícone de documento */}
+      {/* Ãcone de documento */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
         {fileIcon}
       </div>
@@ -983,7 +1248,7 @@ function FileRow({ file, baseUrl, toast }) {
         <div style={{ display: 'flex', gap: 12, marginTop: 2 }}>
           {file.competencia && (
             <span style={{ fontSize: 10.5, color: 'var(--text-3)' }}>
-              Competência {file.competencia}
+              CompetÃªncia {file.competencia}
             </span>
           )}
           {file.tamanho_bytes && (
@@ -999,7 +1264,7 @@ function FileRow({ file, baseUrl, toast }) {
         </div>
       </div>
 
-      {/* Botão download — aparece só no hover */}
+      {/* BotÃ£o download â€” aparece sÃ³ no hover */}
       <button
         className="btn btn-ghost btn-xs"
         onClick={handleDownload}
@@ -1075,7 +1340,7 @@ function ProcessoModal({ selected, baseUrl, toast, onClose }) {
           <div>
             <div style={{ fontWeight: 600, fontSize: 15 }}>{clientName(proc.cert_alias)}</div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>
-              {fmtDateShort(proc.start_date)} → {fmtDateShort(proc.end_date)} · {proc.tipo_nota}
+              {fmtDateShort(proc.start_date)} â†’ {fmtDateShort(proc.end_date)} Â· {proc.tipo_nota}
             </div>
           </div>
           <StatusBadge value={proc.status} />
@@ -1084,7 +1349,7 @@ function ProcessoModal({ selected, baseUrl, toast, onClose }) {
       onClose={onClose}
       wide
     >
-      {/* ── Resumo financeiro ── */}
+      {/* â”€â”€ Resumo financeiro â”€â”€ */}
       {summary && (
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20,
@@ -1104,13 +1369,13 @@ function ProcessoModal({ selected, baseUrl, toast, onClose }) {
                 fontSize: 16, fontWeight: 600,
                 color: color || 'var(--text)',
                 fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
-              }}>{value ?? '—'}</div>
+              }}>{value ?? 'â€”'}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* ── Botões de download rápido ── */}
+      {/* â”€â”€ BotÃµes de download rÃ¡pido â”€â”€ */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
         <button className="btn btn-sm" onClick={handleZip} disabled={dlZip || totalArquivos === 0}
           style={{ minWidth: 180, justifyContent: 'center' }}>
@@ -1128,11 +1393,11 @@ function ProcessoModal({ selected, baseUrl, toast, onClose }) {
           Exportar CSV
         </button>
         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-3)', alignSelf: 'center' }}>
-          {totalArquivos} arquivo{totalArquivos !== 1 ? 's' : ''} disponíveis
+          {totalArquivos} arquivo{totalArquivos !== 1 ? 's' : ''} disponÃ­veis
         </span>
       </div>
 
-      {/* ── Abas de pastas ── */}
+      {/* â”€â”€ Abas de pastas â”€â”€ */}
       <div style={{
         display: 'flex', alignItems: 'flex-end',
         borderBottom: '1px solid var(--border)',
@@ -1168,7 +1433,7 @@ function ProcessoModal({ selected, baseUrl, toast, onClose }) {
         />
       </div>
 
-      {/* ── Conteúdo da aba ── */}
+      {/* â”€â”€ ConteÃºdo da aba â”€â”€ */}
       <div style={{
         background: 'var(--surface-2)',
         border: '1px solid var(--border)',
@@ -1191,9 +1456,9 @@ function ProcessoModal({ selected, baseUrl, toast, onClose }) {
             <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
           </svg>
           <span style={{ color: 'var(--text-3)' }}>NFSE</span>
-          <span>›</span>
+          <span>â€º</span>
           <span style={{ color: 'var(--text-2)' }}>{clientName(proc.cert_alias)}</span>
-          <span>›</span>
+          <span>â€º</span>
           <span style={{ color: 'var(--text)' }}>
             {{ pdfs: 'pdf', xmls: 'xml', planilhas: 'planilhas', notas: 'notas' }[tab]}
           </span>
@@ -1254,8 +1519,8 @@ function ProcessoModal({ selected, baseUrl, toast, onClose }) {
                   <table>
                     <thead><tr>
                       <th>Prestador / Tomador</th>
-                      <th>Competência</th>
-                      <th>Município</th>
+                      <th>CompetÃªncia</th>
+                      <th>MunicÃ­pio</th>
                       <th style={{ textAlign: 'right' }}>Valor Total</th>
                       <th>Status</th>
                     </tr></thead>
@@ -1263,10 +1528,10 @@ function ProcessoModal({ selected, baseUrl, toast, onClose }) {
                       {relatorio.items.map((n, i) => (
                         <tr key={i}>
                           <td className="primary" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {n.parte_exibicao_nome || n.razao_social || '—'}
+                            {n.parte_exibicao_nome || n.razao_social || 'â€”'}
                           </td>
-                          <td className="mono">{n.competencia || '—'}</td>
-                          <td style={{ fontSize: 12 }}>{n.municipio || '—'}</td>
+                          <td className="mono">{n.competencia || 'â€”'}</td>
+                          <td style={{ fontSize: 12 }}>{n.municipio || 'â€”'}</td>
                           <td className="mono right">{fmtMoney(n.valor_total)}</td>
                           <td><StatusBadge value={n.status} /></td>
                         </tr>
@@ -1359,14 +1624,14 @@ function ProcessosPage({ baseUrl, toast }) {
                 className="btn btn-ghost btn-xs"
                 onClick={() => { setEmpresaSelecionada(null); setPage(1); setStatusFiltro(''); }}
                 style={{ fontSize: 11 }}
-              >← Empresas</button>
+              >â† Empresas</button>
               {emp?.nome || clientName(empresaSelecionada)}
             </span>
           ) : 'Processos'
         }
         sub={
           empresaSelecionada
-            ? `Processos de ${emp?.nome || empresaSelecionada} — clique em "Detalhes" para ver os arquivos`
+            ? `Processos de ${emp?.nome || empresaSelecionada} â€” clique em "Detalhes" para ver os arquivos`
             : 'Selecione uma empresa para ver seus processos e acessar os arquivos'
         }
         actions={
@@ -1376,7 +1641,7 @@ function ProcessosPage({ baseUrl, toast }) {
         }
       />
 
-      {/* ── Nível 1: Cards de empresas ── */}
+      {/* â”€â”€ NÃ­vel 1: Cards de empresas â”€â”€ */}
       {!empresaSelecionada && (
         <>
           <div style={{ marginBottom: 16, maxWidth: 400 }}>
@@ -1403,7 +1668,7 @@ function ProcessosPage({ baseUrl, toast }) {
                     onMouseEnter={ev => { ev.currentTarget.style.borderColor = 'var(--accent)'; ev.currentTarget.style.background = 'var(--surface-2)'; }}
                     onMouseLeave={ev => { ev.currentTarget.style.borderColor = 'var(--border)';  ev.currentTarget.style.background = 'var(--surface)'; }}
                   >
-                    {/* Cabeçalho do card */}
+                    {/* CabeÃ§alho do card */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{e.nome}</div>
@@ -1414,7 +1679,7 @@ function ProcessosPage({ baseUrl, toast }) {
                       {e.running > 0 && <Badge tone="info" style={{ flexShrink: 0 }}>rodando</Badge>}
                     </div>
 
-                    {/* Métricas */}
+                    {/* MÃ©tricas */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
                       {[
                         { label: 'Processos', value: e.total,       color: 'var(--text)' },
@@ -1431,15 +1696,15 @@ function ProcessosPage({ baseUrl, toast }) {
                       ))}
                     </div>
 
-                    {/* Rodapé */}
+                    {/* RodapÃ© */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       {e.ultimaExec && (
                         <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                          Último: {fmtDateShort(e.ultimaExec)}
+                          Ãšltimo: {fmtDateShort(e.ultimaExec)}
                         </span>
                       )}
                       <span style={{ fontSize: 11, color: 'var(--accent)', marginLeft: 'auto' }}>
-                        Ver processos →
+                        Ver processos â†’
                       </span>
                     </div>
                   </div>
@@ -1450,7 +1715,7 @@ function ProcessosPage({ baseUrl, toast }) {
         </>
       )}
 
-      {/* ── Nível 2: Processos da empresa ── */}
+      {/* â”€â”€ NÃ­vel 2: Processos da empresa â”€â”€ */}
       {empresaSelecionada && (
         <>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -1492,7 +1757,7 @@ function ProcessosPage({ baseUrl, toast }) {
                         <StatusBadge value={r.status} />
                         <Badge tone="neutral">{r.tipo_nota}</Badge>
                         <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-                          {fmtDateShort(r.start_date)} → {fmtDateShort(r.end_date)}
+                          {fmtDateShort(r.start_date)} â†’ {fmtDateShort(r.end_date)}
                         </span>
                       </div>
                       <div style={{ display: 'flex', gap: 16 }}>
@@ -1501,11 +1766,11 @@ function ProcessosPage({ baseUrl, toast }) {
                           <span style={{ fontFamily: 'var(--font-mono)' }}>{r.total_notas || 0}</span>
                         </span>
                         <span style={{ fontSize: 12, color: 'var(--green)' }}>
-                          ✓ {r.total_corretas || 0}
+                          âœ“ {r.total_corretas || 0}
                         </span>
                         {r.total_divergentes > 0 && (
                           <span style={{ fontSize: 12, color: 'var(--amber)' }}>
-                            ⚠ {r.total_divergentes}
+                            âš  {r.total_divergentes}
                           </span>
                         )}
                       </div>
@@ -1516,7 +1781,7 @@ function ProcessosPage({ baseUrl, toast }) {
                       {r.id.slice(0, 8)}
                     </span>
 
-                    {/* Botão detalhes */}
+                    {/* BotÃ£o detalhes */}
                     <button
                       className="btn btn-sm"
                       disabled={loadingId === r.id}
@@ -1536,7 +1801,7 @@ function ProcessosPage({ baseUrl, toast }) {
         </>
       )}
 
-      {/* ── Modal de detalhes com pastas ── */}
+      {/* â”€â”€ Modal de detalhes com pastas â”€â”€ */}
       <ProcessoModal
         key={selected?.proc?.id || 'closed'}
         selected={selected}
@@ -1548,9 +1813,1222 @@ function ProcessosPage({ baseUrl, toast }) {
   );
 }
 
-// ── Page: NFS-e ──────────────────────────────────────────────
-// Nível 1: empresas únicas com totais
-// Nível 2: ao clicar na empresa, mostra todas as notas dela
+// â”€â”€ Page: NFS-e â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// NÃ­vel 1: empresas Ãºnicas com totais
+// NÃ­vel 2: ao clicar na empresa, mostra todas as notas dela
+
+function FilaDeTrabalhoPage({ baseUrl, toast }) {
+  const yesterday = useMemo(() => daysAgo(1), []);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [selected, setSelected] = useState(null);
+  const [rulesModalOpen, setRulesModalOpen] = useState(false);
+  const [obsInterna, setObsInterna] = useState('');
+  const [statusFila, setStatusFila] = useState('pendente');
+  const [prioridadeFila, setPrioridadeFila] = useState('baixa');
+  const [responsavelFila, setResponsavelFila] = useState('');
+  const [savingObs, setSavingObs] = useState(false);
+  const [savingRule, setSavingRule] = useState(false);
+  const [reapplyingRules, setReapplyingRules] = useState(false);
+  const [smartSearch, setSmartSearch] = useState('');
+  const [ruleForm, setRuleForm] = useState({
+    id: null,
+    campo: 'descricao_servico',
+    operador: 'contains',
+    valor: '',
+    responsavel: '',
+    prioridade: 100,
+    ativo: true,
+  });
+  const [filters, setFilters] = useState({
+    status: '',
+    empresa: '',
+    prioridade: '',
+    responsavel: '',
+    data_tipo: 'entrada',
+    data_inicio: yesterday,
+    data_fim: yesterday,
+  });
+
+  const filaData = useAsync(() => {
+    const q = new URLSearchParams({ page: '1', page_size: '500' });
+    if (filters.status) q.set('status', filters.status);
+    if (filters.empresa) q.set('cert_alias', filters.empresa);
+    if (filters.data_tipo) q.set('data_tipo', filters.data_tipo);
+    if (filters.data_inicio) q.set('data_inicio', filters.data_inicio);
+    if (filters.data_fim) q.set('data_fim', filters.data_fim);
+    return api(baseUrl, `/nfse?${q.toString()}`);
+  }, [baseUrl, filters.status, filters.empresa, filters.data_tipo, filters.data_inicio, filters.data_fim]);
+  const rulesData = useAsync(() => api(baseUrl, '/fila-regras-atribuicao'), [baseUrl]);
+  const docsData = useAsync(
+    () => selected?.id ? api(baseUrl, `/nfse/${selected.id}/documentos`) : Promise.resolve(null),
+    [baseUrl, selected?.id]
+  );
+
+  const queueItems = useMemo(() => {
+    return (filaData.data?.items || []).map(mapQueueItem);
+  }, [filaData.data]);
+
+  const filterOptions = useMemo(() => {
+    const uniq = arr => [...new Set(arr.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+    return {
+      empresas: uniq(queueItems.map(item => item.queue_empresa_alias)),
+      responsaveis: uniq(queueItems.map(item => item.queue_responsavel)),
+    };
+  }, [queueItems]);
+
+  const filteredItems = queueItems.filter(item => {
+    if (filters.prioridade && normFilterValue(item.queue_prioridade) !== normFilterValue(filters.prioridade)) return false;
+    if (filters.responsavel && normFilterValue(item.queue_responsavel) !== normFilterValue(filters.responsavel)) return false;
+    if (!matchQueueSmartSearch(item, smartSearch)) return false;
+    return true;
+  });
+
+  const paginatedItems = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, page, pageSize]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+    if (page > totalPages) setPage(1);
+  }, [filteredItems.length, page, pageSize]);
+
+  useEffect(() => {
+    setObsInterna(selected?.observacao_interna || '');
+    setStatusFila(selected?.status_fila_manual || selected?.queue_status || 'pendente');
+    setPrioridadeFila(normalizeQueuePriority(selected?.prioridade_manual || selected?.queue_prioridade || 'baixa'));
+    setResponsavelFila(selected?.responsavel || '');
+  }, [selected]);
+
+  const setFilter = (key, value) => {
+    setPage(1);
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const tributosComparativo = useMemo(() => {
+    return selected ? buildQueueTributosComparativo(selected) : [];
+  }, [selected]);
+
+  const alertMeta = useMemo(() => {
+    return selected ? getQueueAlertMeta(selected) : null;
+  }, [selected]);
+
+  const resetRuleForm = () => setRuleForm({
+    id: null,
+    campo: 'descricao_servico',
+    operador: 'contains',
+    valor: '',
+    responsavel: '',
+    prioridade: 100,
+    ativo: true,
+  });
+
+  const exportQueueRows = useMemo(() => {
+    return filteredItems.map(item => ({
+      'NÂ° da nota': item.queue_numero_nota,
+      'CompetÃªncia': item.queue_competencia,
+      'Empresa': item.queue_empresa,
+      'Prestador': item.queue_prestador,
+      'Valor': fmtMoney(item.valor_total),
+      'Status': item.queue_status,
+      'DivergÃªncia': item.queue_divergencia,
+      'Prioridade': normalizeQueuePriority(item.queue_prioridade) === 'alta' ? 'Alta' : normalizeQueuePriority(item.queue_prioridade) === 'media' ? 'MÃ©dia' : 'Baixa',
+      'ResponsÃ¡vel': item.queue_responsavel,
+      'Entrada': fmtDate(item.queue_entrada),
+      'SLA': item.queue_sla?.label || 'â€”',
+    }));
+  }, [filteredItems]);
+
+  const exportQueueDetailedRows = useMemo(() => {
+    return filteredItems.map(item => ({
+      ...item,
+      competencia: item.queue_competencia === 'â€”' ? (item.competencia || '') : item.queue_competencia,
+    }));
+  }, [filteredItems]);
+
+  const salvarObservacao = async () => {
+    if (!selected) return;
+    setSavingObs(true);
+    try {
+      await api(baseUrl, `/nfse/${selected.id}`, {
+        method: 'PUT',
+        body: {
+          observacao_interna: obsInterna,
+          status_fila_manual: statusFila,
+          prioridade_manual: prioridadeFila,
+          responsavel: responsavelFila,
+        },
+      });
+      setSelected(prev => prev ? {
+        ...prev,
+        observacao_interna: obsInterna,
+        status_fila_manual: statusFila,
+        status_fila: statusFila,
+        prioridade_manual: prioridadeFila,
+        responsavel: responsavelFila,
+        queue_status: normalizeQueueStatus(statusFila),
+        queue_prioridade: normalizeQueuePriority(prioridadeFila),
+        queue_responsavel: responsavelFila || 'NÃ£o atribuÃ­do',
+        queue_sla: queueSlaFromDate(prev.queue_entrada, prioridadeFila),
+        updated_at: new Date().toISOString(),
+      } : prev);
+      toast('AnÃ¡lise interna salva com sucesso.', 'success');
+      filaData.reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setSavingObs(false);
+    }
+  };
+
+  const salvarRegra = async e => {
+    e.preventDefault();
+    setSavingRule(true);
+    try {
+      const payload = {
+        campo: ruleForm.campo,
+        operador: ruleForm.operador,
+        valor: ruleForm.valor,
+        responsavel: ruleForm.responsavel,
+        prioridade: Number(ruleForm.prioridade) || 100,
+        ativo: !!ruleForm.ativo,
+      };
+      if (ruleForm.id) {
+        await api(baseUrl, `/fila-regras-atribuicao/${ruleForm.id}`, { method: 'PUT', body: payload });
+        toast('Regra atualizada com sucesso.', 'success');
+      } else {
+        await api(baseUrl, '/fila-regras-atribuicao', { method: 'POST', body: payload });
+        toast('Regra criada com sucesso.', 'success');
+      }
+      resetRuleForm();
+      rulesData.reload();
+    } catch (e2) {
+      toast(e2.message, 'error');
+    } finally {
+      setSavingRule(false);
+    }
+  };
+
+  const editarRegra = regra => {
+    setRuleForm({
+      id: regra.id,
+      campo: regra.campo,
+      operador: regra.operador,
+      valor: regra.valor,
+      responsavel: regra.responsavel,
+      prioridade: regra.prioridade,
+      ativo: !!regra.ativo,
+    });
+    setRulesModalOpen(true);
+  };
+
+  const alternarRegra = async regra => {
+    try {
+      await api(baseUrl, `/fila-regras-atribuicao/${regra.id}`, {
+        method: 'PUT',
+        body: {
+          campo: regra.campo,
+          operador: regra.operador,
+          valor: regra.valor,
+          responsavel: regra.responsavel,
+          prioridade: regra.prioridade,
+          ativo: !regra.ativo,
+        },
+      });
+      toast(`Regra ${!regra.ativo ? 'ativada' : 'desativada'} com sucesso.`, 'success');
+      rulesData.reload();
+    } catch (e2) {
+      toast(e2.message, 'error');
+    }
+  };
+
+  const excluirRegra = async regra => {
+    if (!window.confirm(`Excluir a regra "${regra.valor}"?`)) return;
+    try {
+      await api(baseUrl, `/fila-regras-atribuicao/${regra.id}`, { method: 'DELETE' });
+      if (ruleForm.id === regra.id) resetRuleForm();
+      toast('Regra excluÃ­da com sucesso.', 'success');
+      rulesData.reload();
+    } catch (e2) {
+      toast(e2.message, 'error');
+    }
+  };
+
+  const reaplicarRegras = async () => {
+    setReapplyingRules(true);
+    try {
+      const resp = await api(baseUrl, '/fila-regras-atribuicao/reaplicar?somente_sem_responsavel=true', { method: 'POST' });
+      toast(`${resp.atualizadas || 0} nota(s) atualizada(s) pelas regras.`, 'success');
+      filaData.reload();
+    } catch (e2) {
+      toast(e2.message, 'error');
+    } finally {
+      setReapplyingRules(false);
+    }
+  };
+
+  return (
+    <div className="page-enter">
+      <SectionHeader
+        title="Fila de Trabalho"
+        sub="VisÃ£o operacional das notas em anÃ¡lise no portal"
+        actions={
+          <>
+            <button className="btn btn-ghost btn-sm" onClick={() => setRulesModalOpen(true)}>
+              <IconSettings /> Regras
+            </button>
+            <button className="btn btn-ghost btn-sm" disabled={reapplyingRules} onClick={reaplicarRegras}>
+              {reapplyingRules ? <Spinner size={12} /> : <><IconRefresh /> Reaplicar regras</>}
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={!filteredItems.length}
+              onClick={() => dlCSV(exportQueueRows, `fila_trabalho_${today()}.csv`)}
+            >
+              <IconDown /> Exportar fila
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={!filteredItems.length}
+              onClick={() => exportRelatorioCSV(exportQueueDetailedRows, `fila_trabalho_detalhado_${today()}.csv`)}
+            >
+              <IconDown /> Exportar detalhado
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={filaData.reload}>
+              <IconRefresh /> Atualizar
+            </button>
+          </>
+        }
+      />
+
+      <div className="queue-grid">
+        <div className="card">
+          <div className="card-body queue-toolbar">
+            <div className="empresa-card-metric">
+              <div className="stat-label">Notas na fila</div>
+              <div className="stat-value" style={{ fontSize: 22 }}>{filteredItems.length}</div>
+            </div>
+            <div className="empresa-card-metric">
+              <div className="stat-label">Alta prioridade</div>
+              <div className="stat-value" style={{ fontSize: 22, color: 'var(--red)' }}>
+                {filteredItems.filter(item => item.queue_prioridade === 'alta').length}
+              </div>
+            </div>
+            <div className="empresa-card-metric">
+              <div className="stat-label">SLA crÃ­tico</div>
+              <div className="stat-value" style={{ fontSize: 22, color: 'var(--amber)' }}>
+                {filteredItems.filter(item => item.queue_sla.tone === 'danger').length}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <FilterBar label="Filtros da fila" defaultOpen={false}>
+          <div className="form-grid form-cols-4" style={{ marginTop: 16 }} onClick={e => e.stopPropagation()}>
+            <div className="field">
+              <label className="label">Status</label>
+              <select className="select" value={filters.status} onChange={e => setFilter('status', e.target.value)}>
+                <option value="">Todos</option>
+                <option value="divergente">Divergente</option>
+                <option value="correta">Correta</option>
+                <option value="pendente">Pendente</option>
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Empresa</label>
+              <select className="select" value={filters.empresa} onChange={e => setFilter('empresa', e.target.value)}>
+                <option value="">Todas</option>
+                {filterOptions.empresas.map(alias => (
+                  <option key={alias} value={alias}>{clientName(alias)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Prioridade</label>
+              <select className="select" value={filters.prioridade} onChange={e => setFilter('prioridade', e.target.value)}>
+                <option value="">Todas</option>
+                <option value="alta">Alta</option>
+                <option value="media">MÃ©dia</option>
+                <option value="baixa">Baixa</option>
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">ResponsÃ¡vel</label>
+              <select className="select" value={filters.responsavel} onChange={e => setFilter('responsavel', e.target.value)}>
+                <option value="">Todos</option>
+                {filterOptions.responsaveis.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Filtrar por</label>
+              <select className="select" value={filters.data_tipo} onChange={e => setFilter('data_tipo', e.target.value)}>
+                <option value="entrada">Entrada</option>
+                <option value="emissao">EmissÃ£o</option>
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Data inicial</label>
+              <input className="input" type="date" value={filters.data_inicio} onChange={e => setFilter('data_inicio', e.target.value)} />
+            </div>
+            <div className="field">
+              <label className="label">Data final</label>
+              <input className="input" type="date" value={filters.data_fim} onChange={e => setFilter('data_fim', e.target.value)} />
+            </div>
+            <div className="field queue-search-field">
+              <label className="label">Busca inteligente</label>
+              <input
+                className="input"
+                value={smartSearch}
+                onChange={e => { setPage(1); setSmartSearch(e.target.value); }}
+                placeholder="Busque em todas as colunas ou use competencia:, empresa:, status:, prioridade:, responsavel:, nota:, prestador:, valor:, entrada:, sla:"
+              />
+            </div>
+            <div className="field">
+              <label className="label">Atalho</label>
+              <button
+                className="btn btn-ghost btn-sm queue-filter-shortcut"
+                type="button"
+                onClick={() => {
+                  setPage(1);
+                  setFilters(prev => ({
+                    ...prev,
+                    data_tipo: 'entrada',
+                    data_inicio: yesterday,
+                    data_fim: yesterday,
+                  }));
+                }}
+              >
+                Voltar para ontem
+              </button>
+            </div>
+          </div>
+        </FilterBar>
+
+        {filaData.error && <Alert type="error">{filaData.error}</Alert>}
+
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Fila operacional</span>
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            {filaData.loading ? (
+              <div style={{ padding: 24 }}><Loading label="Carregando fila..." /></div>
+            ) : (
+              <div className="table-wrap scrollable queue-table" style={{ border: 'none', borderRadius: 0 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>NÂ° da nota</th>
+                      <th>CompetÃªncia</th>
+                      <th>Empresa</th>
+                      <th>Prestador</th>
+                      <th>Valor</th>
+                      <th>Status</th>
+                      <th>DivergÃªncia</th>
+                      <th>Prioridade</th>
+                      <th>ResponsÃ¡vel</th>
+                      <th>Entrada</th>
+                      <th>SLA</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!paginatedItems.length ? (
+                      <Empty msg="Nenhuma nota encontrada para os filtros atuais." />
+                    ) : paginatedItems.map(item => (
+                      <tr
+                        key={item.id}
+                        className={item.queue_sla.tone === 'danger' ? 'queue-row-attention' : ''}
+                        onClick={() => setSelected(item)}
+                      >
+                        <td className="primary mono">{item.queue_numero_nota}</td>
+                        <td className="mono">{item.queue_competencia}</td>
+                        <td>{item.queue_empresa}</td>
+                        <td style={{ maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.queue_prestador}>
+                          {item.queue_prestador}
+                        </td>
+                        <td className="mono right">{fmtMoney(item.valor_total)}</td>
+                        <td><StatusBadge value={item.queue_status} /></td>
+                        <td>
+                          <Badge tone={item.queue_divergencia === 'Sem divergÃªncia' ? 'success' : 'warn'}>
+                            {item.queue_divergencia}
+                          </Badge>
+                        </td>
+                        <td><QueuePriorityBadge value={item.queue_prioridade} /></td>
+                        <td>{item.queue_responsavel}</td>
+                        <td className="mono">{fmtDate(item.queue_entrada)}</td>
+                        <td><QueueSlaBadge sla={item.queue_sla} /></td>
+                        <td className="actions">
+                          <button
+                            className="btn btn-primary btn-xs"
+                            onClick={e => { e.stopPropagation(); setSelected(item); }}
+                          >
+                            Analisar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filteredItems.length}
+          onPage={setPage}
+          onSize={s => { setPageSize(s); setPage(1); }}
+        />
+      </div>
+
+      <Modal open={rulesModalOpen} title="Regras de atribuiÃ§Ã£o automÃ¡tica" onClose={() => { setRulesModalOpen(false); resetRuleForm(); }} wide>
+        <div className="queue-detail">
+          <Alert type="info">
+            Use regras simples para preencher o responsÃ¡vel automaticamente. Regra manual na nota continua prevalecendo. Exemplos:
+            <strong> descriÃ§Ã£o do serviÃ§o contÃ©m "COMISSÃƒO" â†’ Yasmin</strong> ou <strong>fornecedor contÃ©m "Planning" â†’ Rejane</strong>.
+          </Alert>
+
+          <div className="queue-detail-grid">
+            <div className="queue-detail-block">
+              <div className="card-title" style={{ marginBottom: 12 }}>{ruleForm.id ? 'Editar regra' : 'Nova regra'}</div>
+              <form onSubmit={salvarRegra}>
+                <div className="form-grid form-cols-2">
+                  <div className="field">
+                    <label className="label">Campo</label>
+                    <select className="select" value={ruleForm.campo} onChange={e => setRuleForm(f => ({ ...f, campo: e.target.value }))}>
+                      <option value="descricao_servico">DescriÃ§Ã£o do serviÃ§o</option>
+                      <option value="fornecedor">Fornecedor</option>
+                      <option value="cert_alias">Empresa/alias</option>
+                      <option value="codigo_servico">CÃ³digo do serviÃ§o</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="label">Operador</label>
+                    <select className="select" value={ruleForm.operador} onChange={e => setRuleForm(f => ({ ...f, operador: e.target.value }))}>
+                      <option value="contains">ContÃ©m</option>
+                      <option value="equals">Igual a</option>
+                      <option value="starts_with">ComeÃ§a com</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="label">Valor da regra</label>
+                    <input className="input" value={ruleForm.valor} onChange={e => setRuleForm(f => ({ ...f, valor: e.target.value }))} placeholder="Ex.: COMISSÃƒO, CORRETAGEM, Planning" required />
+                  </div>
+                  <div className="field">
+                    <label className="label">ResponsÃ¡vel</label>
+                    <input className="input" value={ruleForm.responsavel} onChange={e => setRuleForm(f => ({ ...f, responsavel: e.target.value }))} placeholder="Ex.: Yasmin" required />
+                  </div>
+                  <div className="field">
+                    <label className="label">Prioridade</label>
+                    <input className="input" type="number" min="1" value={ruleForm.prioridade} onChange={e => setRuleForm(f => ({ ...f, prioridade: e.target.value }))} />
+                  </div>
+                  <div className="field" style={{ display: 'flex', alignItems: 'end' }}>
+                    <label className="checkbox-inline">
+                      <input type="checkbox" checked={!!ruleForm.ativo} onChange={e => setRuleForm(f => ({ ...f, ativo: e.target.checked }))} />
+                      <span>Regra ativa</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="queue-detail-actions">
+                  {ruleForm.id ? <button type="button" className="btn btn-ghost btn-sm" onClick={resetRuleForm}>Cancelar ediÃ§Ã£o</button> : null}
+                  <button className="btn btn-primary btn-sm" disabled={savingRule}>
+                    {savingRule ? <Spinner size={13} /> : ruleForm.id ? 'Atualizar regra' : 'Salvar regra'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="queue-detail-block">
+              <div className="card-title" style={{ marginBottom: 12 }}>Regras cadastradas</div>
+              {rulesData.loading ? <Loading label="Carregando regras..." /> : rulesData.error ? <Alert type="error">{rulesData.error}</Alert> : (
+                <div className="table-wrap scrollable" style={{ border: 'none', borderRadius: 0 }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Campo</th>
+                        <th>Operador</th>
+                        <th>Valor</th>
+                        <th>ResponsÃ¡vel</th>
+                        <th>Prioridade</th>
+                        <th>Status</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {!(rulesData.data || []).length ? (
+                        <Empty msg="Nenhuma regra cadastrada." />
+                      ) : (rulesData.data || []).map(regra => (
+                        <tr key={regra.id}>
+                          <td>{regra.campo}</td>
+                          <td>{regra.operador}</td>
+                          <td>{regra.valor}</td>
+                          <td>{regra.responsavel}</td>
+                          <td className="mono">{regra.prioridade}</td>
+                          <td><Badge tone={regra.ativo ? 'success' : 'neutral'}>{regra.ativo ? 'Ativa' : 'Inativa'}</Badge></td>
+                          <td className="actions">
+                            <button className="btn btn-ghost btn-xs" onClick={() => editarRegra(regra)}><IconEdit /></button>
+                            <button className="btn btn-ghost btn-xs" onClick={() => alternarRegra(regra)}>{regra.ativo ? 'Desativar' : 'Ativar'}</button>
+                            <button className="btn btn-danger btn-xs" onClick={() => excluirRegra(regra)}><IconTrash /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!selected} title={selected ? `Analisar nota â€” ${selected.queue_numero_nota}` : 'Analisar nota'} onClose={() => setSelected(null)} wide>
+        {!selected ? null : (
+          <div className="queue-detail">
+            <div className="queue-detail-grid">
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>Resumo operacional</div>
+                <div className="queue-detail-row"><span>Empresa</span><strong>{selected.queue_empresa}</strong></div>
+                <div className="queue-detail-row"><span>Prestador</span><strong>{selected.queue_prestador}</strong></div>
+                <div className="queue-detail-row"><span>Valor</span><strong>{fmtMoney(selected.valor_total)}</strong></div>
+                <div className="queue-detail-row"><span>Entrada</span><strong>{fmtDate(selected.queue_entrada)}</strong></div>
+                <div className="queue-detail-row"><span>ResponsÃ¡vel</span><strong>{selected.queue_responsavel}</strong></div>
+              </div>
+
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>ClassificaÃ§Ã£o</div>
+                <div className="queue-detail-row"><span>Status</span><StatusBadge value={selected.queue_status} /></div>
+                <div className="queue-detail-row"><span>Prioridade</span><QueuePriorityBadge value={selected.queue_prioridade} /></div>
+                <div className="queue-detail-row"><span>SLA</span><QueueSlaBadge sla={selected.queue_sla} /></div>
+                <div className="queue-detail-row"><span>DivergÃªncia</span><Badge tone={selected.queue_divergencia === 'Sem divergÃªncia' ? 'success' : 'warn'}>{selected.queue_divergencia}</Badge></div>
+              </div>
+            </div>
+
+            {!!selected.campos_ausentes_xml && (
+              <Alert type="warn">
+                <strong>Campos ausentes no XML:</strong> {selected.campos_ausentes_xml}
+              </Alert>
+            )}
+
+            {!!alertMeta && (
+              <Alert type={alertMeta.type}>
+                <strong>{alertMeta.title}:</strong> {alertMeta.text}
+              </Alert>
+            )}
+
+            <div className="queue-detail-grid">
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>IdentificaÃ§Ã£o da nota</div>
+                <div className="queue-detail-row"><span>ID</span><strong className="mono">{selected.id}</strong></div>
+                <div className="queue-detail-row"><span>Processo</span><strong className="mono">{selected.processo_id || 'â€”'}</strong></div>
+                <div className="queue-detail-row"><span>Chave</span><strong className="mono">{selected.chave_acesso || 'â€”'}</strong></div>
+                <div className="queue-detail-row"><span>CNPJ/CPF</span><strong>{selected.cnpj_cpf || 'â€”'}</strong></div>
+                <div className="queue-detail-row"><span>Tipo</span><strong>{selected.tipo_nota || 'â€”'}</strong></div>
+              </div>
+
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>Contexto operacional</div>
+                <div className="queue-detail-row"><span>Valor lÃ­quido</span><strong>{fmtMoney(selected.valor_liquido)}</strong></div>
+                <div className="queue-detail-row"><span>IRRF</span><strong>{fmtMoney(selected.irrf)}</strong></div>
+                <div className="queue-detail-row"><span>INSS</span><strong>{fmtMoney(selected.inss)}</strong></div>
+                <div className="queue-detail-row"><span>ISS</span><strong>{fmtMoney(selected.iss)}</strong></div>
+                <div className="queue-detail-row"><span>AtualizaÃ§Ã£o</span><strong>{fmtDate(selected.updated_at || selected.created_at)}</strong></div>
+              </div>
+            </div>
+
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>Comparativo de tributos</div>
+                <div className="table-wrap queue-compare-table" style={{ border: 'none', borderRadius: 0 }}>
+                  <table>
+                  <thead>
+                    <tr>
+                      <th>Tributo</th>
+                      <th>Informado</th>
+                      <th>Calculado</th>
+                      <th>DiferenÃ§a</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tributosComparativo.map(item => {
+                      const diff = item.calculado - item.informado;
+                      const tone = Math.abs(diff) > 0.009 ? 'danger' : 'neutral';
+                      const diffLabel = Math.abs(diff) > 0.009 ? `${diff > 0 ? '+' : ''}${fmtMoney(diff)}` : '-';
+                      return (
+                        <tr key={item.label}>
+                          <td className="primary">{item.label}</td>
+                          <td className="mono right">{fmtMoney(item.informado)}</td>
+                          <td className="mono right">{fmtMoney(item.calculado)}</td>
+                          <td className={`mono right compare-diff compare-diff-${tone}`}>{diffLabel}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="queue-detail-block queue-documents-panel">
+                <QueueDocumentsBlock baseUrl={baseUrl} docsState={docsData} />
+              </div>
+
+              <div className="queue-detail-grid">
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>AnÃ¡lise interna</div>
+                <div className="field">
+                  <label className="label">Status da fila</label>
+                  <select className="select" value={statusFila} onChange={e => setStatusFila(e.target.value)}>
+                    <option value="pendente">Pendente</option>
+                    <option value="divergente">Divergente</option>
+                    <option value="correta">Correta</option>
+                  </select>
+                </div>
+                <div className="field" style={{ marginTop: 12 }}>
+                  <label className="label">Prioridade</label>
+                  <select className="select" value={prioridadeFila} onChange={e => setPrioridadeFila(e.target.value)}>
+                    <option value="alta">Alta</option>
+                    <option value="media">MÃ©dia</option>
+                    <option value="baixa">Baixa</option>
+                  </select>
+                </div>
+                <div className="field" style={{ marginTop: 12 }}>
+                  <label className="label">ResponsÃ¡vel</label>
+                  <input
+                    className="input"
+                    value={responsavelFila}
+                    onChange={e => setResponsavelFila(e.target.value)}
+                    placeholder="Nome do responsÃ¡vel"
+                  />
+                </div>
+              </div>
+
+              <div className="queue-detail-block">
+                <div className="card-title" style={{ marginBottom: 12 }}>ObservaÃ§Ã£o interna</div>
+                <div className="field">
+                  <label className="label">AnotaÃ§Ãµes do auditor</label>
+                  <textarea
+                    className="textarea"
+                    value={obsInterna}
+                    onChange={e => setObsInterna(e.target.value)}
+                    placeholder="Registre contexto, decisÃ£o tomada ou encaminhamento interno."
+                  />
+                  <div className="queue-detail-actions">
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={savingObs}
+                      onClick={salvarObservacao}
+                    >
+                      {savingObs ? <Spinner size={13} /> : 'Salvar anÃ¡lise'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function FilaDeTrabalhoBPage({ baseUrl, toast }) {
+  const yesterday = useMemo(() => daysAgo(1), []);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [notaAtiva, setNotaAtiva] = useState(null);
+  const [observacao, setObservacao] = useState('');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [fornecedorOpen, setFornecedorOpen] = useState(false);
+  const [regraOpen, setRegraOpen] = useState(false);
+  const [regraDescricao, setRegraDescricao] = useState('');
+  const [motivoFornecedor, setMotivoFornecedor] = useState('');
+  const [obsFornecedor, setObsFornecedor] = useState('');
+  const [savingAction, setSavingAction] = useState(false);
+
+  const [statusFilter, setStatusFilter] = useState('todos');
+  const [empresaFilter, setEmpresaFilter] = useState('todos');
+  const [prioridadeFilter, setPrioridadeFilter] = useState('todos');
+  const [responsavelFilter, setResponsavelFilter] = useState('todos');
+  const [sortField, setSortField] = useState('prioridade');
+  const [sortDir, setSortDir] = useState('asc');
+
+  const queueData = useAsync(() => {
+    const q = new URLSearchParams({
+      page: '1',
+      page_size: '500',
+      data_tipo: 'entrada',
+      data_inicio: yesterday,
+      data_fim: yesterday,
+    });
+    if (statusFilter !== 'todos') q.set('status', statusFilter === 'ok' ? 'correta' : statusFilter === 'a_analisar' ? 'pendente' : statusFilter);
+    if (empresaFilter !== 'todos') q.set('cert_alias', empresaFilter);
+    return api(baseUrl, `/nfse?${q.toString()}`);
+  }, [baseUrl, yesterday, statusFilter, empresaFilter]);
+  const docsDataB = useAsync(
+    () => notaAtiva?.id ? api(baseUrl, `/nfse/${notaAtiva.id}/documentos`) : Promise.resolve(null),
+    [baseUrl, notaAtiva?.id]
+  );
+
+  const queueItems = useMemo(() => (queueData.data?.items || []).map(mapQueueItem), [queueData.data]);
+
+  const responsavelOptions = useMemo(() => {
+    const set = new Set(queueItems.map(item => item.queue_responsavel).filter(Boolean));
+    ['Ana Silva', 'Carlos Mendes', 'Juliana Costa', 'Roberto Alves', 'Fernanda Lima'].forEach(v => set.add(v));
+    return [...set].filter(v => v && v !== 'Nao atribuido').sort((a, b) => String(a).localeCompare(String(b)));
+  }, [queueItems]);
+
+  const filteredNotas = useMemo(() => {
+    const result = [...queueItems];
+    const filtered = result.filter(item => {
+      if (prioridadeFilter !== 'todos' && normalizeQueuePriority(item.queue_prioridade) !== prioridadeFilter) return false;
+      if (responsavelFilter !== 'todos' && item.queue_responsavel !== responsavelFilter) return false;
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      if (sortField === 'valor') {
+        const diff = Number(a.valor_total || 0) - Number(b.valor_total || 0);
+        return sortDir === 'asc' ? diff : -diff;
+      }
+      if (sortField === 'prioridade') {
+        const order = { alta: 0, media: 1, baixa: 2 };
+        const diff = order[normalizeQueuePriority(a.queue_prioridade)] - order[normalizeQueuePriority(b.queue_prioridade)];
+        return sortDir === 'asc' ? diff : -diff;
+      }
+      if (sortField === 'sla') {
+        const diff = Number(a.queue_sla?.hours || 0) - Number(b.queue_sla?.hours || 0);
+        return sortDir === 'asc' ? diff : -diff;
+      }
+      return 0;
+    });
+
+    return filtered;
+  }, [queueItems, prioridadeFilter, responsavelFilter, sortField, sortDir]);
+
+  const counts = useMemo(() => ({
+    total: filteredNotas.length,
+    aAnalisar: filteredNotas.filter(item => lovableStatusFromQueue(item.queue_status) === 'a_analisar').length,
+    divergentes: filteredNotas.filter(item => lovableStatusFromQueue(item.queue_status) === 'divergente').length,
+    ok: filteredNotas.filter(item => lovableStatusFromQueue(item.queue_status) === 'ok').length,
+  }), [filteredNotas]);
+
+  useEffect(() => {
+    if (!notaAtiva) return;
+    const next = filteredNotas.find(item => item.id === notaAtiva.id);
+    if (next) {
+      setNotaAtiva(next);
+      setObservacao(next.observacao_interna || '');
+    }
+  }, [filteredNotas, notaAtiva]);
+
+  const limparFiltros = () => {
+    setStatusFilter('todos');
+    setEmpresaFilter('todos');
+    setPrioridadeFilter('todos');
+    setResponsavelFilter('todos');
+  };
+
+  const handleSort = field => {
+    if (sortField === field) setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const handleToggleSelect = id => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
+  };
+
+  const handleToggleAll = () => {
+    setSelectedIds(prev => prev.length === filteredNotas.length ? [] : filteredNotas.map(item => item.id));
+  };
+
+  const openNota = nota => {
+    setNotaAtiva(nota);
+    setObservacao(nota.observacao_interna || '');
+    setSheetOpen(true);
+  };
+
+  const saveNota = async (nota, updates, successMsg) => {
+    setSavingAction(true);
+    try {
+      await api(baseUrl, `/nfse/${nota.id}`, { method: 'PUT', body: updates });
+      toast(successMsg, 'success');
+      await queueData.reload();
+      setSelectedIds(prev => prev.filter(id => id !== nota.id));
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
+  const handleConfirmarOk = nota => saveNota(
+    nota,
+    { status_fila_manual: 'correta', observacao_interna: observacao },
+    `Nota ${nota.queue_numero_nota} confirmada como OK`
+  ).then(() => setSheetOpen(false));
+
+  const handleConfirmarDivergencia = nota => saveNota(
+    nota,
+    { status_fila_manual: 'divergente', observacao_interna: observacao },
+    `Nota ${nota.queue_numero_nota} marcada como divergente`
+  ).then(() => {
+    setSheetOpen(false);
+    setRegraDescricao(`Divergencia ${nota.queue_divergencia} - ${nota.queue_prestador}`);
+    setRegraOpen(true);
+  });
+
+  const handleMarcarResolvido = nota => saveNota(
+    nota,
+    { status_fila_manual: 'correta', observacao_interna: observacao },
+    `Nota ${nota.queue_numero_nota} resolvida`
+  ).then(() => setSheetOpen(false));
+
+  const handleEnviarFornecedor = nota => {
+    setNotaAtiva(nota);
+    setMotivoFornecedor('');
+    setObsFornecedor(observacao || '');
+    setFornecedorOpen(true);
+  };
+
+  const handleConfirmarEnvio = async () => {
+    if (!notaAtiva || !motivoFornecedor) return;
+    const texto = [observacao, `Enviado ao fornecedor - motivo: ${motivoFornecedor}`, obsFornecedor].filter(Boolean).join('\n');
+    await saveNota(notaAtiva, { observacao_interna: texto }, `Nota ${notaAtiva.queue_numero_nota} enviada ao fornecedor`);
+    setFornecedorOpen(false);
+    setSheetOpen(false);
+  };
+
+  const handleLoteOk = async () => {
+    setSavingAction(true);
+    try {
+      for (const id of selectedIds) {
+        await api(baseUrl, `/nfse/${id}`, { method: 'PUT', body: { status_fila_manual: 'correta' } });
+      }
+      toast(`${selectedIds.length} nota(s) confirmada(s) como OK`, 'success');
+      setSelectedIds([]);
+      await queueData.reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
+  const handleLoteStatus = async status => {
+    if (!status) return;
+    setSavingAction(true);
+    try {
+      for (const id of selectedIds) {
+        await api(baseUrl, `/nfse/${id}`, { method: 'PUT', body: { status_fila_manual: status } });
+      }
+      toast(`Status atualizado para ${selectedIds.length} nota(s)`, 'success');
+      setSelectedIds([]);
+      await queueData.reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
+  const handleLoteAtribuir = async responsavel => {
+    if (!responsavel) return;
+    setSavingAction(true);
+    try {
+      for (const id of selectedIds) {
+        await api(baseUrl, `/nfse/${id}`, { method: 'PUT', body: { responsavel } });
+      }
+      toast(`${selectedIds.length} nota(s) atribuida(s) a ${responsavel}`, 'success');
+      setSelectedIds([]);
+      await queueData.reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
+  const handleSalvarRegra = async () => {
+    if (!notaAtiva || !(notaAtiva.descricao_servico || '').trim()) {
+      toast('A nota selecionada nao tem descricao de servico para virar regra.', 'error');
+      return;
+    }
+    const responsavel = (notaAtiva.responsavel || notaAtiva.queue_responsavel || '').trim();
+    if (!responsavel || responsavel === 'Nao atribuido') {
+      toast('Defina um responsavel antes de salvar a regra.', 'error');
+      return;
+    }
+    try {
+      await api(baseUrl, '/fila-regras-atribuicao', {
+        method: 'POST',
+        body: {
+          campo: 'descricao_servico',
+          operador: 'contains',
+          valor: notaAtiva.descricao_servico,
+          responsavel,
+          prioridade: 100,
+          ativo: true,
+        },
+      });
+      setRegraOpen(false);
+      toast('Regra salva com sucesso', 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
+  const allSelected = filteredNotas.length > 0 && selectedIds.length === filteredNotas.length;
+  const empresaOptions = [...new Set(queueItems.map(item => item.queue_empresa_alias).filter(Boolean))];
+  const historicoAtual = notaAtiva ? [
+    { data: fmtDate(notaAtiva.created_at), usuario: 'Sistema', acao: 'Nota recebida e pre-auditada' },
+    ...(notaAtiva.observacao_interna ? [{ data: fmtDate(notaAtiva.updated_at || notaAtiva.created_at), usuario: 'Auditoria', acao: notaAtiva.observacao_interna }] : []),
+  ] : [];
+  const tributosComparativo = notaAtiva ? buildQueueTributosComparativo(notaAtiva) : [];
+
+  return (
+    <div className="page-enter queue-b-page">
+      <div className="queue-b-header">
+        <h2 className="queue-b-title">Fila de Trabalho B</h2>
+        <div className="queue-b-header-stats">
+          <span>{counts.total} notas</span>
+          <span className="queue-b-stat-info">{counts.aAnalisar} a analisar</span>
+          <span className="queue-b-stat-danger">{counts.divergentes} divergentes</span>
+          <span className="queue-b-stat-success">{counts.ok} ok</span>
+        </div>
+      </div>
+
+      <div className="queue-b-filters">
+        <span className="queue-b-filter-label">Filtros:</span>
+        <select className="select queue-b-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option value="todos">Todos status</option>
+          <option value="a_analisar">A analisar</option>
+          <option value="divergente">Divergente</option>
+          <option value="ok">OK</option>
+        </select>
+        <select className="select queue-b-select" value={empresaFilter} onChange={e => setEmpresaFilter(e.target.value)}>
+          <option value="todos">Todas empresas</option>
+          {empresaOptions.map(alias => <option key={alias} value={alias}>{clientName(alias)}</option>)}
+        </select>
+        <select className="select queue-b-select" value={prioridadeFilter} onChange={e => setPrioridadeFilter(e.target.value)}>
+          <option value="todos">Todas</option>
+          <option value="alta">Alta</option>
+          <option value="media">Media</option>
+          <option value="baixa">Baixa</option>
+        </select>
+        <select className="select queue-b-select" value={responsavelFilter} onChange={e => setResponsavelFilter(e.target.value)}>
+          <option value="todos">Todos</option>
+          {responsavelOptions.map(nome => <option key={nome} value={nome}>{nome}</option>)}
+        </select>
+        <button className="btn btn-ghost btn-sm" onClick={limparFiltros}>Limpar</button>
+      </div>
+
+      {selectedIds.length > 0 && (
+        <div className="queue-b-batchbar">
+          <span className="queue-b-batchcount">{selectedIds.length} selecionada(s)</span>
+          <button className="btn btn-ghost btn-sm" disabled={savingAction} onClick={handleLoteOk}>Marcar OK</button>
+          <select className="select queue-b-select" defaultValue="" onChange={e => handleLoteStatus(e.target.value)}>
+            <option value="">Mudar status</option>
+            <option value="pendente">A analisar</option>
+            <option value="divergente">Divergente</option>
+            <option value="correta">OK</option>
+          </select>
+          <select className="select queue-b-select" defaultValue="" onChange={e => handleLoteAtribuir(e.target.value)}>
+            <option value="">Atribuir</option>
+            {responsavelOptions.map(nome => <option key={nome} value={nome}>{nome}</option>)}
+          </select>
+        </div>
+      )}
+
+      {queueData.error && <Alert type="error">{queueData.error}</Alert>}
+
+      <div className="queue-b-table">
+        <table>
+          <thead>
+            <tr>
+              <th className="queue-b-checkcol">
+                <input type="checkbox" checked={allSelected} onChange={handleToggleAll} />
+              </th>
+              <th>No. Nota</th>
+              <th>Empresa</th>
+              <th>Prestador</th>
+              <th>
+                <button className="queue-b-sort" onClick={() => handleSort('valor')}>Valor</button>
+              </th>
+              <th>Status</th>
+              <th>Divergencia</th>
+              <th>
+                <button className="queue-b-sort" onClick={() => handleSort('prioridade')}>Prioridade</button>
+              </th>
+              <th>Responsavel</th>
+              <th>Entrada</th>
+              <th>
+                <button className="queue-b-sort" onClick={() => handleSort('sla')}>SLA</button>
+              </th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {!filteredNotas.length ? (
+              <tr>
+                <td colSpan={12} className="queue-b-empty">Nenhuma nota encontrada com os filtros aplicados.</td>
+              </tr>
+            ) : filteredNotas.map(nota => (
+              <tr key={nota.id} className="queue-b-row" onClick={() => openNota(nota)}>
+                <td onClick={e => e.stopPropagation()}>
+                  <input type="checkbox" checked={selectedIds.includes(nota.id)} onChange={() => handleToggleSelect(nota.id)} />
+                </td>
+                <td className="mono">{nota.queue_numero_nota}</td>
+                <td className="queue-b-truncate" title={nota.queue_empresa}>{nota.queue_empresa}</td>
+                <td className="queue-b-truncate" title={nota.queue_prestador}>{nota.queue_prestador}</td>
+                <td className="mono right">{fmtMoney(nota.valor_total)}</td>
+                <td><Badge tone={lovableStatusTone(nota.queue_status)}>{lovableStatusLabel(nota.queue_status)}</Badge></td>
+                <td className="queue-b-truncate">{nota.queue_divergencia === 'Sem divergencia' ? '-' : nota.queue_divergencia}</td>
+                <td><QueuePriorityBadge value={nota.queue_prioridade} /></td>
+                <td>{nota.queue_responsavel}</td>
+                <td>{fmtDateShort(nota.queue_entrada)}</td>
+                <td className={`queue-b-sla queue-b-sla-${nota.queue_sla.tone}`}>{nota.queue_sla.label}</td>
+                <td onClick={e => e.stopPropagation()}>
+                  <button className="btn btn-ghost btn-xs" onClick={() => openNota(nota)}>Analisar</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {!sheetOpen || !notaAtiva ? null : ReactDOM.createPortal(
+        <div className="queue-b-sheet-overlay" onClick={() => setSheetOpen(false)}>
+          <div className="queue-b-sheet" onClick={e => e.stopPropagation()}>
+            <div className="queue-b-sheet-header">
+              <div className="queue-b-sheet-title">Nota {notaAtiva.queue_numero_nota}</div>
+              <button className="modal-close" onClick={() => setSheetOpen(false)}><IconX /></button>
+            </div>
+
+            <div className="queue-b-sheet-body">
+              <div className="queue-b-meta">
+                <div><span>Empresa:</span><p>{notaAtiva.queue_empresa}</p></div>
+                <div><span>Prestador:</span><p>{notaAtiva.queue_prestador}</p></div>
+                <div><span>CNPJ:</span><p className="mono">{notaAtiva.cnpj_cpf || '-'}</p></div>
+                <div><span>Valor:</span><p className="mono">{fmtMoney(notaAtiva.valor_total)}</p></div>
+                <div className="queue-b-inline"><span>Status:</span><Badge tone={lovableStatusTone(notaAtiva.queue_status)}>{lovableStatusLabel(notaAtiva.queue_status)}</Badge></div>
+                <div className="queue-b-inline"><span>Prioridade:</span><QueuePriorityBadge value={notaAtiva.queue_prioridade} /></div>
+              </div>
+
+              <QueueDocumentsBlock baseUrl={baseUrl} docsState={docsDataB} />
+
+              <div>
+                <h4 className="queue-b-block-title">Comparativo de Tributos</h4>
+                <div className="queue-b-compare">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Tributo</th>
+                        <th className="right">Informado</th>
+                        <th className="right">Calculado</th>
+                        <th className="right">Diferenca</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tributosComparativo.map(item => {
+                        const diff = Number(item.calculado || 0) - Number(item.informado || 0);
+                        const hasDiff = Math.abs(diff) > 0.009;
+                        return (
+                          <tr key={item.label} className={hasDiff ? 'queue-b-diff-row' : ''}>
+                            <td>{item.label}</td>
+                            <td className="mono right">{fmtMoney(item.informado)}</td>
+                            <td className="mono right">{fmtMoney(item.calculado)}</td>
+                            <td className={cn('mono right', hasDiff ? 'queue-b-diff-danger' : 'queue-b-diff-neutral')}>
+                              {hasDiff ? `${diff > 0 ? '+' : ''}${fmtMoney(diff)}` : '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="queue-b-block-title">Observacao Interna</h4>
+                <textarea
+                  className="textarea queue-b-textarea"
+                  value={observacao}
+                  onChange={e => setObservacao(e.target.value)}
+                  placeholder="Adicionar observacao..."
+                />
+              </div>
+
+              <div>
+                <h4 className="queue-b-block-title">Historico de Tratativas</h4>
+                <div className="queue-b-history">
+                  {historicoAtual.map((item, idx) => (
+                    <div key={idx} className="queue-b-history-item">
+                      <div className="queue-b-history-meta">{item.data} - {item.usuario}</div>
+                      <div>{item.acao}</div>
+                    </div>
+                  ))}
+                  {!historicoAtual.length && <div className="queue-b-history-empty">Sem historico registrado.</div>}
+                </div>
+              </div>
+
+              <div className="queue-b-actions">
+                <h4 className="queue-b-block-title">Acoes</h4>
+                <div className="queue-b-actions-grid">
+                  <button className="btn btn-ghost btn-sm queue-b-action-ok" disabled={savingAction} onClick={() => handleConfirmarOk(notaAtiva)}>Confirmar OK</button>
+                  <button className="btn btn-ghost btn-sm queue-b-action-danger" disabled={savingAction} onClick={() => handleConfirmarDivergencia(notaAtiva)}>Divergente</button>
+                  <button className="btn btn-ghost btn-sm queue-b-action-vendor" disabled={savingAction} onClick={() => handleEnviarFornecedor(notaAtiva)}>Enviar Fornecedor</button>
+                  <button className="btn btn-ghost btn-sm queue-b-action-resolve" disabled={savingAction} onClick={() => handleMarcarResolvido(notaAtiva)}>Resolvido</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      <Modal open={fornecedorOpen} title="Enviar ao Fornecedor" onClose={() => setFornecedorOpen(false)}>
+        <div className="queue-detail">
+          <div className="field">
+            <label className="label">Motivo da Pendencia</label>
+            <select className="select" value={motivoFornecedor} onChange={e => setMotivoFornecedor(e.target.value)}>
+              <option value="">Selecione o motivo...</option>
+              <option value="XML divergente">XML divergente</option>
+              <option value="Retencao inconsistente">Retencao inconsistente</option>
+              <option value="Aliquota incorreta">Aliquota incorreta</option>
+              <option value="Dados cadastrais">Dados cadastrais</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+          <div className="field">
+            <label className="label">Observacao</label>
+            <textarea className="textarea" value={obsFornecedor} onChange={e => setObsFornecedor(e.target.value)} placeholder="Detalhes adicionais..." />
+          </div>
+          <div className="queue-detail-actions">
+            <button className="btn btn-ghost btn-sm" onClick={() => setFornecedorOpen(false)}>Cancelar</button>
+            <button className="btn btn-primary btn-sm" disabled={!motivoFornecedor || savingAction} onClick={handleConfirmarEnvio}>Confirmar Envio</button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={regraOpen} title="Salvar como Regra?" onClose={() => setRegraOpen(false)}>
+        <div className="queue-detail">
+          <Alert type="info">Quer salvar essa correcao para que o sistema aplique automaticamente em notas futuras?</Alert>
+          <div className="queue-b-rule-preview">{regraDescricao}</div>
+          <div className="queue-detail-actions">
+            <button className="btn btn-ghost btn-sm" onClick={() => setRegraOpen(false)}>Nao salvar</button>
+            <button className="btn btn-primary btn-sm" onClick={handleSalvarRegra}>Salvar regra</button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
 
 function NFSePage({ baseUrl, toast }) {
   const [empresaSelecionada, setEmpresaSelecionada] = useState(null);
@@ -1598,10 +3076,10 @@ function NFSePage({ baseUrl, toast }) {
 
   const filterFields = [
     { k: 'status',         l: 'Status' },
-    { k: 'municipio',      l: 'Município' },
+    { k: 'municipio',      l: 'MunicÃ­pio' },
     { k: 'cnpj_cpf',       l: 'CPF/CNPJ' },
-    { k: 'competencia',    l: 'Competência (AAAA-MM)' },
-    { k: 'codigo_servico', l: 'Código do serviço' },
+    { k: 'competencia',    l: 'CompetÃªncia (AAAA-MM)' },
+    { k: 'codigo_servico', l: 'CÃ³digo do serviÃ§o' },
   ];
 
   return (
@@ -1610,7 +3088,7 @@ function NFSePage({ baseUrl, toast }) {
         title={empresaSelecionada ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button className="btn btn-ghost btn-xs" onClick={() => { setEmpresaSelecionada(null); setPage(1); setFilters({ status: '', municipio: '', cnpj_cpf: '', competencia: '', codigo_servico: '', somente_divergentes: false }); }}
-              style={{ fontSize: 11 }}>← Empresas</button>
+              style={{ fontSize: 11 }}>â† Empresas</button>
             {emp?.nome || clientName(empresaSelecionada)}
           </span>
         ) : 'NFS-e'}
@@ -1628,7 +3106,7 @@ function NFSePage({ baseUrl, toast }) {
         )}
       />
 
-      {/* ── Nível 1: Lista de empresas ── */}
+      {/* â”€â”€ NÃ­vel 1: Lista de empresas â”€â”€ */}
       {!empresaSelecionada && (
         <>
           <div style={{ marginBottom: 16, maxWidth: 400 }}>
@@ -1656,11 +3134,11 @@ function NFSePage({ baseUrl, toast }) {
                             <td>
                               {e.divergentes > 0
                                 ? <Badge tone="warn">{e.divergentes} divergentes</Badge>
-                                : <span style={{ color: 'var(--text-3)' }}>—</span>}
+                                : <span style={{ color: 'var(--text-3)' }}>â€”</span>}
                             </td>
                             <td className="mono right">{fmtMoney(e.valorTotal)}</td>
                             <td className="actions">
-                              <span style={{ fontSize: 11, color: 'var(--accent)' }}>Ver notas →</span>
+                              <span style={{ fontSize: 11, color: 'var(--accent)' }}>Ver notas â†’</span>
                             </td>
                           </tr>
                         ))}
@@ -1673,7 +3151,7 @@ function NFSePage({ baseUrl, toast }) {
         </>
       )}
 
-      {/* ── Nível 2: Notas da empresa ── */}
+      {/* â”€â”€ NÃ­vel 2: Notas da empresa â”€â”€ */}
       {empresaSelecionada && (
         <>
           <FilterBar>
@@ -1703,9 +3181,9 @@ function NFSePage({ baseUrl, toast }) {
                 <div className="table-wrap scrollable" style={{ border: 'none', borderRadius: 0 }}>
                   <table>
                     <thead><tr>
-                      <th>Empresa (prestador/tomador)</th><th>Tipo</th><th>Competência</th>
-                      <th>Município</th><th>Documento</th>
-                      <th>Valor Total</th><th>Vlr. Líquido</th><th>Status</th>
+                      <th>Empresa (prestador/tomador)</th><th>Tipo</th><th>CompetÃªncia</th>
+                      <th>MunicÃ­pio</th><th>Documento</th>
+                      <th>Valor Total</th><th>Vlr. LÃ­quido</th><th>Status</th>
                     </tr></thead>
                     <tbody>
                       {(nfseList.data?.items || []).length === 0
@@ -1740,7 +3218,7 @@ function NFSePage({ baseUrl, toast }) {
   );
 }
 
-// ── Page: Relatório Interativo ───────────────────────────────
+// â”€â”€ Page: RelatÃ³rio Interativo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function RelatorioPage({ baseUrl, toast }) {
   const [processoId, setProcessoId] = useState('');
   const [page, setPage]       = useState(1);
@@ -1798,24 +3276,24 @@ function RelatorioPage({ baseUrl, toast }) {
 
   const READONLY_COLS = [
     { k: 'razao_social',  l: 'Empresa',        w: 160 },
-    { k: 'competencia',   l: 'Competência',     w: 100 },
-    { k: 'municipio',     l: 'Município',       w: 120 },
+    { k: 'competencia',   l: 'CompetÃªncia',     w: 100 },
+    { k: 'municipio',     l: 'MunicÃ­pio',       w: 120 },
     { k: 'cnpj_cpf',      l: 'Documento',       w: 130, mono: true },
     { k: 'valor_total',   l: 'Valor Total',     w: 110, money: true },
-    { k: 'valor_liquido', l: 'Vlr. Líquido',    w: 110, money: true },
+    { k: 'valor_liquido', l: 'Vlr. LÃ­quido',    w: 110, money: true },
     { k: 'status',        l: 'Status',          w: 100, badge: true },
   ];
 
   const EDIT_COLS = [
-    { k: 'valor_liquido_correto', l: 'Vlr. Líq. Correto', w: 130 },
+    { k: 'valor_liquido_correto', l: 'Vlr. LÃ­q. Correto', w: 130 },
     { k: 'alertas_fiscais',       l: 'Alertas / Obs.',    w: 180 },
   ];
 
   return (
     <div className="page-enter">
       <SectionHeader
-        title="Relatório Interativo"
-        sub="Edição e exportação de dados de auditoria"
+        title="RelatÃ³rio Interativo"
+        sub="EdiÃ§Ã£o e exportaÃ§Ã£o de dados de auditoria"
         actions={
           <>
             <button className="btn btn-ghost btn-sm" disabled={!rows.length}
@@ -1829,7 +3307,7 @@ function RelatorioPage({ baseUrl, toast }) {
       {/* KPIs */}
       <div className="stat-grid" style={{ marginBottom: 20 }}>
         <div className="stat-card neutral">
-          <div className="stat-label">Linhas visíveis</div>
+          <div className="stat-label">Linhas visÃ­veis</div>
           <div className="stat-value">{summary.total}</div>
         </div>
         <div className={cn('stat-card', summary.divergentes > 0 ? 'warn' : 'success')}>
@@ -1841,7 +3319,7 @@ function RelatorioPage({ baseUrl, toast }) {
           <div className="stat-value money">{fmtMoney(summary.valorTotal)}</div>
         </div>
         <div className="stat-card success">
-          <div className="stat-label">Valor líquido</div>
+          <div className="stat-label">Valor lÃ­quido</div>
           <div className="stat-value money">{fmtMoney(summary.valorLiquido)}</div>
         </div>
       </div>
@@ -1857,10 +3335,10 @@ function RelatorioPage({ baseUrl, toast }) {
           </div>
           {[
             { k: 'status',         l: 'Status' },
-            { k: 'municipio',      l: 'Município' },
-            { k: 'competencia',    l: 'Competência' },
+            { k: 'municipio',      l: 'MunicÃ­pio' },
+            { k: 'competencia',    l: 'CompetÃªncia' },
             { k: 'cnpj_cpf',       l: 'CPF/CNPJ' },
-            { k: 'codigo_servico', l: 'Código serviço' },
+            { k: 'codigo_servico', l: 'CÃ³digo serviÃ§o' },
             { k: 'busca',          l: 'Busca livre' },
           ].map(({ k, l }) => (
             <div key={k} className="field">
@@ -1877,7 +3355,7 @@ function RelatorioPage({ baseUrl, toast }) {
           </div>
           <div className="field" style={{ justifyContent: 'flex-end', paddingTop: 20 }}>
             <button className="btn btn-primary btn-sm" onClick={() => { setPage(1); load(); }}>
-              ▶ Carregar relatório
+              â–¶ Carregar relatÃ³rio
             </button>
           </div>
         </div>
@@ -1888,7 +3366,7 @@ function RelatorioPage({ baseUrl, toast }) {
         <div className="card-body" style={{ padding: 0 }}>
           {loading ? <div style={{ padding: 24 }}><Loading /></div> : rows.length === 0 ? (
             <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
-              Informe um Processo ID e clique em Carregar relatório.
+              Informe um Processo ID e clique em Carregar relatÃ³rio.
             </div>
           ) : (
             <div className="table-wrap scrollable" style={{ border: 'none', borderRadius: 0 }}>
@@ -1898,7 +3376,7 @@ function RelatorioPage({ baseUrl, toast }) {
                     {READONLY_COLS.map(c => <th key={c.k} style={{ minWidth: c.w }}>{c.l}</th>)}
                     {EDIT_COLS.map(c => (
                       <th key={c.k} style={{ minWidth: c.w, color: 'var(--accent)' }}>
-                        ✏ {c.l}
+                        âœ {c.l}
                       </th>
                     ))}
                     <th style={{ minWidth: 70 }}></th>
@@ -1913,7 +3391,7 @@ function RelatorioPage({ baseUrl, toast }) {
                           {c.badge ? <StatusBadge value={row[c.k]} />
                             : c.money ? fmtMoney(row[c.k])
                             : <span style={{ maxWidth: c.w, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                title={String(row[c.k] ?? '')}>{row[c.k] ?? '—'}</span>}
+                                title={String(row[c.k] ?? '')}>{row[c.k] ?? 'â€”'}</span>}
                         </td>
                       ))}
                       {EDIT_COLS.map(c => (
@@ -1922,7 +3400,7 @@ function RelatorioPage({ baseUrl, toast }) {
                             className="rel-input"
                             value={row[c.k] ?? ''}
                             onChange={e => setEdit(idx, c.k, e.target.value)}
-                            placeholder="—"
+                            placeholder="â€”"
                           />
                         </td>
                       ))}
@@ -1948,7 +3426,7 @@ function RelatorioPage({ baseUrl, toast }) {
   );
 }
 
-// ── Page: Certificados ───────────────────────────────────────
+// â”€â”€ Page: Certificados â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function CertificadosPage({ baseUrl, toast }) {
   const list = useAsync(() => api(baseUrl, '/certificados'), [baseUrl]);
   const [modal, setModal] = useState(null); // null | 'new' | 'edit' | 'pass'
@@ -1984,7 +3462,7 @@ function CertificadosPage({ baseUrl, toast }) {
 
   const submitPass = async e => {
     e.preventDefault();
-    if (passForm.password !== passForm.confirm) { toast('As senhas não coincidem.', 'error'); return; }
+    if (passForm.password !== passForm.confirm) { toast('As senhas nÃ£o coincidem.', 'error'); return; }
     setSaving(true);
     try {
       await api(baseUrl, `/certificados/${current.alias}/senha`, { method: 'PUT', body: { password: passForm.password } });
@@ -1995,13 +3473,13 @@ function CertificadosPage({ baseUrl, toast }) {
   const doDelete = async () => {
     try {
       await api(baseUrl, `/certificados/${confirm}`, { method: 'DELETE' });
-      toast('Certificado excluído.', 'success'); setConfirm(null); list.reload();
+      toast('Certificado excluÃ­do.', 'success'); setConfirm(null); list.reload();
     } catch (e) { toast(e.message, 'error'); setConfirm(null); }
   };
 
   return (
     <div className="page-enter">
-      <SectionHeader title="Certificados" sub="Gestão de certificados digitais PFX"
+      <SectionHeader title="Certificados" sub="GestÃ£o de certificados digitais PFX"
         actions={<button className="btn btn-primary btn-sm" onClick={() => { setForm({ alias: '', client_name: '', password: '', file: null }); setModal('new'); }}><IconPlus /> Novo certificado</button>}
       />
 
@@ -2072,7 +3550,7 @@ function CertificadosPage({ baseUrl, toast }) {
       </Modal>
 
       {/* Modal Editar */}
-      <Modal open={modal === 'edit'} title={`Editar — ${current?.alias}`} onClose={() => setModal(null)}>
+      <Modal open={modal === 'edit'} title={`Editar â€” ${current?.alias}`} onClose={() => setModal(null)}>
         <form onSubmit={submitEdit}>
           <div className="form-grid form-cols-2">
             <div className="field">
@@ -2092,7 +3570,7 @@ function CertificadosPage({ baseUrl, toast }) {
       </Modal>
 
       {/* Modal Senha */}
-      <Modal open={modal === 'pass'} title={`Redefinir senha — ${current?.alias}`} onClose={() => setModal(null)}>
+      <Modal open={modal === 'pass'} title={`Redefinir senha â€” ${current?.alias}`} onClose={() => setModal(null)}>
         <form onSubmit={submitPass}>
           <div className="form-grid">
             <div className="field">
@@ -2112,13 +3590,13 @@ function CertificadosPage({ baseUrl, toast }) {
       </Modal>
 
       <Confirm open={!!confirm} title="Excluir certificado"
-        msg={`Deseja excluir o certificado "${confirm}"? O arquivo .pfx e a senha serão removidos permanentemente.`}
+        msg={`Deseja excluir o certificado "${confirm}"? O arquivo .pfx e a senha serÃ£o removidos permanentemente.`}
         danger onOk={doDelete} onCancel={() => setConfirm(null)} />
     </div>
   );
 }
 
-// ── Page: Credenciais ────────────────────────────────────────
+// â”€â”€ Page: Credenciais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function CredenciaisPage({ baseUrl, toast }) {
   const list = useAsync(() => api(baseUrl, '/credenciais'), [baseUrl]);
   const [modal, setModal] = useState(null);
@@ -2149,7 +3627,7 @@ function CredenciaisPage({ baseUrl, toast }) {
 
   const submitPass = async e => {
     e.preventDefault();
-    if (passForm.password !== passForm.confirm) { toast('As senhas não coincidem.', 'error'); return; }
+    if (passForm.password !== passForm.confirm) { toast('As senhas nÃ£o coincidem.', 'error'); return; }
     setSaving(true);
     try {
       await api(baseUrl, `/credenciais/${current.alias}/senha`, { method: 'PUT', body: { password: passForm.password } });
@@ -2160,7 +3638,7 @@ function CredenciaisPage({ baseUrl, toast }) {
   const doDelete = async () => {
     try {
       await api(baseUrl, `/credenciais/${confirm}`, { method: 'DELETE' });
-      toast('Credencial excluída.', 'success'); setConfirm(null); list.reload();
+      toast('Credencial excluÃ­da.', 'success'); setConfirm(null); list.reload();
     } catch (e) { toast(e.message, 'error'); setConfirm(null); }
   };
 
@@ -2186,7 +3664,7 @@ function CredenciaisPage({ baseUrl, toast }) {
                         <td className="mono">{r.alias}</td>
                         <td className="mono">{r.document}</td>
                         <td><StatusBadge value={r.status} /></td>
-                        <td><Badge tone={r.has_password ? 'success' : 'danger'}>{r.has_password ? 'Configurada' : 'Não'}</Badge></td>
+                        <td><Badge tone={r.has_password ? 'success' : 'danger'}>{r.has_password ? 'Configurada' : 'NÃ£o'}</Badge></td>
                         <td className="actions">
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button className="btn btn-ghost btn-xs" onClick={() => { setCurrent(r); setForm({ alias: r.alias, cpf_cnpj: r.document || '', password: '' }); setModal('edit'); }}>
@@ -2219,7 +3697,7 @@ function CredenciaisPage({ baseUrl, toast }) {
             <div className="field">
               <label className="label">CPF/CNPJ *</label>
               <input className="input" required value={form.cpf_cnpj} onChange={e => f('cpf_cnpj', e.target.value)} placeholder="00.000.000/0000-00" />
-              <span className="input-hint">Somente CPFs e CNPJs válidos são aceitos</span>
+              <span className="input-hint">Somente CPFs e CNPJs vÃ¡lidos sÃ£o aceitos</span>
             </div>
             <div className="field">
               <label className="label">Senha *</label>
@@ -2233,7 +3711,7 @@ function CredenciaisPage({ baseUrl, toast }) {
         </form>
       </Modal>
 
-      <Modal open={modal === 'edit'} title={`Editar — ${current?.alias}`} onClose={() => setModal(null)}>
+      <Modal open={modal === 'edit'} title={`Editar â€” ${current?.alias}`} onClose={() => setModal(null)}>
         <form onSubmit={submitEdit}>
           <div className="form-grid form-cols-2">
             <div className="field">
@@ -2252,7 +3730,7 @@ function CredenciaisPage({ baseUrl, toast }) {
         </form>
       </Modal>
 
-      <Modal open={modal === 'pass'} title={`Redefinir senha — ${current?.alias}`} onClose={() => setModal(null)}>
+      <Modal open={modal === 'pass'} title={`Redefinir senha â€” ${current?.alias}`} onClose={() => setModal(null)}>
         <form onSubmit={submitPass}>
           <div className="form-grid">
             <div className="field">
@@ -2278,7 +3756,7 @@ function CredenciaisPage({ baseUrl, toast }) {
   );
 }
 
-// ── Page: Configurações ──────────────────────────────────────
+// â”€â”€ Page: ConfiguraÃ§Ãµes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ConfiguracoesPage({ baseUrl, setBaseUrl, toast }) {
   const [url, setUrl] = useState(baseUrl);
   const [pinging, setPinging] = useState(false);
@@ -2288,21 +3766,21 @@ function ConfiguracoesPage({ baseUrl, setBaseUrl, toast }) {
     setPinging(true); setPingRes(null);
     try {
       const d = await api(url, '/health');
-      setPingRes({ ok: true, msg: `API conectada — status: ${d.status}` });
+      setPingRes({ ok: true, msg: `API conectada â€” status: ${d.status}` });
       setBaseUrl(url);
-      toast('Conexão estabelecida com sucesso.', 'success');
+      toast('ConexÃ£o estabelecida com sucesso.', 'success');
     } catch (e) {
       setPingRes({ ok: false, msg: e.message });
-      toast('Falha na conexão: ' + e.message, 'error');
+      toast('Falha na conexÃ£o: ' + e.message, 'error');
     } finally { setPinging(false); }
   };
 
   return (
     <div className="page-enter">
-      <SectionHeader title="Configurações" sub="Conexão e preferências do portal" />
+      <SectionHeader title="ConfiguraÃ§Ãµes" sub="ConexÃ£o e preferÃªncias do portal" />
 
       <div className="card" style={{ maxWidth: 600 }}>
-        <div className="card-header"><span className="card-title">Conexão com a API</span></div>
+        <div className="card-header"><span className="card-title">ConexÃ£o com a API</span></div>
         <div className="card-body">
           <div className="form-grid">
             <div className="field">
@@ -2315,7 +3793,7 @@ function ConfiguracoesPage({ baseUrl, setBaseUrl, toast }) {
             {pingRes && <Alert type={pingRes.ok ? 'success' : 'error'}>{pingRes.msg}</Alert>}
             <div>
               <button className="btn btn-primary btn-sm" disabled={pinging} onClick={ping}>
-                {pinging ? <><Spinner size={13} /> Testando...</> : '⚡ Testar conexão'}
+                {pinging ? <><Spinner size={13} /> Testando...</> : 'âš¡ Testar conexÃ£o'}
               </button>
             </div>
           </div>
@@ -2326,11 +3804,11 @@ function ConfiguracoesPage({ baseUrl, setBaseUrl, toast }) {
             <div style={{ fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Rotas da API</div>
             {[
               ['POST /certificados',           'multipart/form-data'],
-              ['POST /credenciais',             'JSON — CPF/CNPJ validado'],
-              ['POST /executar',                'JSON — disparo manual'],
-              ['POST /agendar',                 'JSON — modo automático diário'],
-              ['PUT  /nfse/{id}',               'JSON — salvar edições do relatório'],
-              ['GET  /processos/{id}/arquivos/{arq}/download', 'stream — MinIO ou local'],
+              ['POST /credenciais',             'JSON â€” CPF/CNPJ validado'],
+              ['POST /executar',                'JSON â€” disparo manual'],
+              ['POST /agendar',                 'JSON â€” modo automÃ¡tico diÃ¡rio'],
+              ['PUT  /nfse/{id}',               'JSON â€” salvar ediÃ§Ãµes do relatÃ³rio'],
+              ['GET  /processos/{id}/arquivos/{arq}/download', 'stream â€” MinIO ou local'],
               ['POST /admin/limpar-minio',      'limpeza manual de arquivos antigos'],
             ].map(([rota, desc]) => (
               <div key={rota} style={{ display: 'flex', gap: 8, padding: '4px 0', borderBottom: '1px solid var(--border-soft)' }}>
@@ -2345,7 +3823,7 @@ function ConfiguracoesPage({ baseUrl, setBaseUrl, toast }) {
   );
 }
 
-// ── App Shell ────────────────────────────────────────────────
+// â”€â”€ App Shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function App() {
   const [active, setActive] = useState('dashboard');
   const [baseUrl, setBaseUrl] = useState(() => localStorage.getItem('nfse_url') || 'http://127.0.0.1:8000');
@@ -2411,6 +3889,8 @@ function App() {
     dashboard:    <DashboardPage {...pageProps} />,
     execucao:     <ExecucaoPage {...pageProps} />,
     agendamentos: <AgendamentosPage {...pageProps} />,
+    fila_trabalho:<FilaDeTrabalhoPage {...pageProps} />,
+    fila_trabalho_b:<FilaDeTrabalhoBPage {...pageProps} />,
     processos:    <ProcessosPage {...pageProps} />,
     nfse:         <NFSePage {...pageProps} />,
     relatorio:    <RelatorioPage {...pageProps} />,
@@ -2420,11 +3900,12 @@ function App() {
   };
 
   const currentMenu = MENU.find(m => m.key === active);
+  const queueFocus = active === 'fila_trabalho' || active === 'fila_trabalho_b';
 
   return (
-    <div className="app-shell">
+    <div className={cn('app-shell', queueFocus && 'queue-focus-shell')}>
       {/* Desktop sidebar */}
-      <aside className="sidebar">
+      <aside className={cn('sidebar', queueFocus && 'queue-focus-hidden')}>
         <SidebarContent />
       </aside>
 
@@ -2453,6 +3934,11 @@ function App() {
 
         {/* Desktop topbar */}
         <div className="topbar">
+          {queueFocus && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setMobileOpen(true)}>
+              Menu
+            </button>
+          )}
           <span className="topbar-title">{currentMenu?.label}</span>
           <span className="topbar-sep">/</span>
           <span className="topbar-sub">Portal de Auditoria Fiscal</span>
@@ -2464,7 +3950,7 @@ function App() {
           </div>
         </div>
 
-        <div className="page-content">
+        <div className={cn('page-content', queueFocus && 'queue-focus-content')}>
           {pages[active] || <div />}
         </div>
       </div>
@@ -2475,3 +3961,5 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+
